@@ -20,7 +20,7 @@ def embedding(ids,
         # Padding Character(<PAD>) to Zero-vector
         if zeropad:
             zero_embed = tf.convert_to_tensor(np.zeros(shape=[1, embed_dim]), dtype=tf.float32)
-            embed_table = tf.concat([embed_table[1:, :], zero_embed], axis=0)
+            embed_table = tf.concat([zero_embed, embed_table[1:, :]], axis=0)
 
         embeded_tensor = tf.nn.embedding_lookup(params=embed_table, ids=ids)
 
@@ -39,15 +39,16 @@ def embedding(ids,
                                      for pos in range(1, seq_length+1)], np.float32)
             lookup_array = tf.convert_to_tensor(lookup_array, dtype=tf.float32)
             pos_table = tf.convert_to_tensor(lookup_array, dtype=tf.float32, name='pos_table')
+
             ids = np.arange(seq_length)
             pos_embed = tf.nn.embedding_lookup(params=pos_table, ids=ids)
             pos_embed = embeded_tensor + pos_embed
 
             # Masking (<PAD> to Zero-vector)
             mask = tf.sign(tf.abs(tf.reduce_sum(embeded_tensor, axis=-1)))
-            mask = tf.tile(tf.expand_dims(mask, -1), [1, 1, tf.shape(pos_embed)[1]])
+            mask = tf.tile(tf.expand_dims(mask, -1), [1, 1, tf.shape(pos_embed)[-1]])
             pos_embed *= mask
-            return embeded_tensor
+            return pos_embed
 
     return embeded_tensor
 
