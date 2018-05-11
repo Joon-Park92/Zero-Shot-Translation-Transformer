@@ -15,7 +15,7 @@ def warmup_learning_rate(d_model, step_num, warmup_step):
     compare_2 = step_num * tf.pow(warmup_step, -1.5)
     compare = tf.cond(pred=tf.greater_equal(compare_1, compare_2),
                       true_fn=lambda: compare_2,
-                      false_fn=lambda: compare_2)
+                      false_fn=lambda: compare_1)
 
     learning_rate = tf.pow(d_model, -0.5) * compare
 

@@ -12,4 +12,4 @@ if __name__ =='__main__':
 
     with tf.Session() as sess:
         sess.run([tf.global_variables_initializer(), eval_iterator.initializer, tf.tables_initializer()])
-        Model.evaluation(sess, eval_iterator)
+        Model.evaluate(sess, eval_iterator)

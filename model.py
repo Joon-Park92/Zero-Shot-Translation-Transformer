@@ -28,6 +28,7 @@ class Transformer(object):
                  is_training,
                  save_dir,
                  warmup_step,
+                 max_len,
                  config):
         """
         Args:
@@ -49,13 +50,17 @@ class Transformer(object):
         self._drop_rate = drop_rate
         self._num_blocks = num_blocks
         self._warmup_step = warmup_step
+        self._max_len = max_len
 
         self._input_int2vocab = input_int2vocab
         self._target_int2vocab = target_int2vocab
         self._is_training = is_training
         self._build_graph()
         self._save_dir = save_dir
-                    
+
+    def __call__(self, *args):
+        pass
+
     def _build_graph(self):
 
         with self.graph.as_default():
@@ -149,44 +154,60 @@ class Transformer(object):
         self.saver.restore(sess, tf.train.latest_checkpoint('/media/disk1/public_milab/translation/transformer/zhkr_bible/log/'))
         print("Graph is Loaded from ckpt")
 
-    # TODO: Revise the decoding part ( use tf.while() )
-    # def evaluation(self, sess, dev_dataset_iterator):
-    #     """
-    #     Args:
-    #         sess: tensorflow Session Object
-    #     """
-    #     self.load(sess)
-    #     path = os.path.join(hp.logdir, 'result')
-    #     if not os.path.isdir(path): os.mkdir(path)
-    #
-    #     f_input = codecs.open(os.path.join(path, 'input.txt'),'w', 'utf-8')
-    #     f_preds = codecs.open(os.path.join(path, 'pred.txt'),'w', 'utf-8')
-    #     f_target = codecs.open(os.path.join(path, 'target.txt'), 'w', 'utf-8')
-    #
-    #     reference = []
-    #     translation = []
-    #
-    #     while 1:
-    #         try:
-    #             inputs, targets = sess.run(dev_dataset_iterator.get_next())
-    #             preds = np.zeros((hp.batch_size, hp.maxlen), np.int32)
-    #             for j in tqdm(range(hp.maxlen)):
-    #                 _preds = sess.run(self.logits, feed_dict={self.x: inputs, self.y: preds})
-    #                 _preds = arg_max_target_lang(_preds)
-    #                 preds[:, j] = _preds[:, j]
-    #
-    #             for input_, pred, target in zip(inputs, preds, targets):
-    #                 f_input.write((" ".join([self._input_int2vocab.get(idx) for idx in input_])).split('<PAD>')[0] + '\n')
-    #                 f_preds.write((" ".join([self._target_int2vocab.get(idx) for idx in pred])).split('</S>')[0] + '\n')
-    #                 f_target.write((" ".join([self._target_int2vocab.get(idx) for idx in target])).split('</S>')[0] + '\n')
-    #
-    #                 reference.append((" ".join([self._target_int2vocab.get(idx) for idx in target])).split('</S>')[0])
-    #                 translation.append((" ".join([self._target_int2vocab.get(idx) for idx in pred])).split('</S>')[0])
-    #
-    #         except tf.errors.OutOfRangeError:
-    #             break
-    #
-    #     print('BLEU : {}'.format(compute_bleu(reference_corpus= reference, translation_corpus=translation)))
-    #     f_input.close()
-    #     f_preds.close()
-    #     f_target.close()
+    # TODO: Revise the decoding part ( use tf.while_loop() )
+    def _cond(self, i, inputs, *args):
+        return tf.less(i, self._max_len)
+
+    def _body(self, i, inputs, ):
+        i = tf.add(i, 1)
+        outputs = self.__call__(inputs, self.decoder_inputs)
+        return i, outputs
+
+    def translate(self, sess, dec_inputs, enc_outputs):
+        self.load(sess)
+        loop_vars = []
+        translated_tensor = tf.while_loop(self._cond, self._body, loop_vars, shape_invariants=True)
+        return translated_tensor
+
+    def evaluate(self, sess, dev_dataset_iterator):
+        """
+        Args:
+            sess: tensorflow Session Object
+            iterator: tf.Dataset.iterator Object
+        """
+        path = os.path.join(hp.logdir, 'result')
+        if not os.path.isdir(path): os.mkdir(path)
+
+        f_input = codecs.open(os.path.join(path, 'input.txt'), 'w', 'utf-8')
+        f_preds = codecs.open(os.path.join(path, 'pred.txt'), 'w', 'utf-8')
+        f_target = codecs.open(os.path.join(path, 'target.txt'), 'w', 'utf-8')
+
+        reference = []
+        translation = []
+
+        while 1:
+            try:
+                inputs, targets = sess.run(dev_dataset_iterator.get_next())
+                preds = np.zeros((hp.batch_size, hp.maxlen), np.int32)
+                for j in tqdm(range(hp.maxlen)):
+                    _preds = sess.run(self.logits, feed_dict={self.x: inputs, self.y: preds})
+                    _preds = arg_max_target_lang(_preds)
+                    preds[:, j] = _preds[:, j]
+
+                for input_, pred, target in zip(inputs, preds, targets):
+                    f_input.write((" ".join([self._input_int2vocab.get(idx) for idx in input_])).split('<PAD>')[0] + '\n')
+                    f_preds.write((" ".join([self._target_int2vocab.get(idx) for idx in pred])).split('</S>')[0] + '\n')
+                    f_target.write((" ".join([self._target_int2vocab.get(idx) for idx in target])).split('</S>')[0] + '\n')
+
+                    reference.append((" ".join([self._target_int2vocab.get(idx) for idx in target])).split('</S>')[0])
+                    translation.append((" ".join([self._target_int2vocab.get(idx) for idx in pred])).split('</S>')[0])
+
+            except tf.errors.OutOfRangeError:
+                break
+
+        print('BLEU : {}'.format(compute_bleu(reference_corpus= reference, translation_corpus=translation)))
+        f_input.close()
+        f_preds.close()
+        f_target.close()
+
+

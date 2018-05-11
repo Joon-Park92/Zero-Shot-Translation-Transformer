@@ -1,6 +1,15 @@
 from data_load import load_vocabs, load_data_set
 from model import *
 
+
+class Trainer(object):
+    def __init__(self, sess, model, config):
+        pass
+
+    def train_epoch(self, epoch):
+        pass
+
+
 if __name__ == '__main__':
     
     zeroshot_vocab2int, zeroshot_int2vocab, lang_idx_dict = load_vocabs()
@@ -40,7 +49,6 @@ if __name__ == '__main__':
                 if step % hp.evaluate_every_n_step == 1:
                     _, step, merged = sess.run([Model.train_op, Model.global_step, Model.merged], feed_dict={input_controller.controller: False})
                     dev_writer.add_summary(merged, step)
-
 
             except tf.errors.OutOfRangeError:
                 print("Training is over...!")

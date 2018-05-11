@@ -153,7 +153,7 @@ class DataSaver(object):
 
         vocab = {}
         for i in range(len(langlist)):
-            vocab[langlist[i]] = Counter([word for sentence in df_in[langlist[i]] for word in sentence.split()])
+            vocab[langlist[i]] = Counter([word for sentence in self.df[langlist[i]] for word in sentence.split()])
             file_name = os.path.join(path, 'vocab.' + langlist[i].lower())
             print(file_name)
             count = vocab[langlist[i]]
@@ -187,7 +187,7 @@ if __name__ == '__main__':
     Loader = DataLoader(path=DATA_PATH, languages=LANGUAGES)
     DF = Loader.get_df()
 
-    # To be reviesed
+    # ToDO: reviese gollowing part to deal with general case
     DF['en-es'] = DF['en-es'].sample(MAX_DATA)
     DF['es-ja'] = DF['es-ja'].sample(MAX_DATA)
     DF['en-ja'] = DF['en-ja'].sample(MAX_DATA)

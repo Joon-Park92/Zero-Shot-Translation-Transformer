@@ -2,8 +2,7 @@
 #/usr/bin/python2
 
 class Hyperparams:
-    '''Hyperparameters'''
-    # data
+
     # vocab_path: containing each vocab of each languages ( gen by preprocess.py )
     vocab_path = '/media/disk1/public_milab/translation/transformer/zhkr_bible/data/vocab' 
     

@@ -52,7 +52,7 @@ class InputController(object):
 
 
 # Input tensor for Training / Evaluation ( Developement )
-def get_dataset(mode, hash_table):
+def get_dataset(mode, input_hash_table, target_hash_table):
     """
     Args:
         mode: 'train' / 'dev'
@@ -70,7 +70,8 @@ def get_dataset(mode, hash_table):
     dataset = tf.data.Dataset.zip((input_dataset, output_dataset))
     dataset = dataset.map(lambda string_in, string_out: (tf.string_split([string_in]).values[:hp.maxlen],
                                                          tf.string_split([string_out]).values[:hp.maxlen]))
-    dataset = dataset.map(lambda words_in, words_out: (hash_table.lookup(words_in), hash_table.lookup(words_out)))
+    dataset = dataset.map(lambda words_in, words_out: \
+                              (input_hash_table.lookup(words_in), target_hash_table.lookup(words_out)))
     dataset = dataset.padded_batch(batch_size=hp.batch_size,
                                    padded_shapes=(tf.TensorShape([hp.maxlen]), tf.TensorShape([hp.maxlen])))
 

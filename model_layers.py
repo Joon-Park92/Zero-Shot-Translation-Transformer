@@ -160,7 +160,7 @@ def decoding_sublayer(output_embedding,
                                                     causality=True)
             output_embedding = tf.layers.dropout(output_embedding, rate=drop_rate, training=is_training)
             # Add & Norm
-            output_embedding = output_embedding+ residual
+            output_embedding = output_embedding + residual
             output_embedding = tf.layers.batch_normalization(output_embedding, axis=-1, training=is_training)
 
         # SubLayer_2 (Multi-Head Attention)
