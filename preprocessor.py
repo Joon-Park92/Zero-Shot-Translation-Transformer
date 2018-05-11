@@ -23,7 +23,7 @@ from urllib import urlretrieve
 from hyperparams import hp
 
 
-class DLProgress(tqdm):
+class DLProgress(tqdm.tqdm):
     last_block = 0
 
     def hook(self, block_num=1, block_size=1, total_size=None):
