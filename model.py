@@ -15,7 +15,7 @@ from utils import *
 
 
 class Transformer(object):
-    
+
     def __init__(self, graph,
                  x,
                  y,
@@ -58,15 +58,24 @@ class Transformer(object):
         self._build_graph()
         self._save_dir = save_dir
 
-    def __call__(self, *args):
-        pass
+    def __call__(self, inputs, decoder_inputs, drop_rate, is_training):
+        return self._transformer_layer(inputs=inputs,
+                                       decoder_inputs=decoder_inputs,
+                                       drop_rate=drop_rate,
+                                       is_training=is_training)
 
-    def _build_graph(self):
+    def _transformer_layer(self,
+                           inputs,
+                           decoder_inputs,
+                           drop_rate,
+                           is_training,
+                           scope='Transformer',
+                           reuse=False):
 
-        with self.graph.as_default():
+        with tf.variable_scope(name_or_scope=scope, reuse=reuse):
             with tf.name_scope('ENCODER'):
                 # Input Embedding + Positional Encoding
-                input_embedding = embedding(ids=self.x,
+                input_embedding = embedding(ids=inputs,
                                             vocab_size=len(self._input_int2vocab),
                                             embed_dim=self._num_units,
                                             zeropad=True,
@@ -75,20 +84,20 @@ class Transformer(object):
                                             reuse=False)
 
                 input_embedding = tf.layers.dropout(inputs=input_embedding,
-                                                    rate=self._drop_rate,
-                                                    training=self._is_training)
+                                                    rate=drop_rate,
+                                                    training=is_training)
 
                 # Encoder Blocks
                 for i in range(1, self._num_blocks + 1):
                     input_embedding = encoding_sublayer(input_embedding=input_embedding,
                                                         num_units=self._num_units,
                                                         num_heads=self._num_head,
-                                                        drop_rate=self._drop_rate,
-                                                        is_training=self._is_training,
+                                                        drop_rate=drop_rate,
+                                                        is_training=is_training,
                                                         scope='enc_block_{}'.format(i),
                                                         reuse=False)
             with tf.name_scope('DECODER'):
-                output_embedding = embedding(ids=self.decoder_inputs,
+                output_embedding = embedding(ids=decoder_inputs,
                                              vocab_size=len(self._target_int2vocab),
                                              embed_dim=self._num_units,
                                              zeropad=True,
@@ -97,8 +106,8 @@ class Transformer(object):
                                              reuse=False)
 
                 output_embedding = tf.layers.dropout(inputs=output_embedding,
-                                                     rate=self._drop_rate,
-                                                     training=self._is_training)
+                                                     rate=drop_rate,
+                                                     training=is_training)
 
                 # Decoding Blocks
                 for i in range(1, self._num_blocks + 1):
@@ -106,13 +115,25 @@ class Transformer(object):
                                                          input_embedding=input_embedding,
                                                          num_units=self._num_units,
                                                          num_heads=self._num_head,
-                                                         drop_rate=self._drop_rate,
-                                                         is_training=self._is_training,
+                                                         drop_rate=drop_rate,
+                                                         is_training=is_training,
                                                          scope='dec_block_{}'.format(i),
                                                          reuse=False)
 
             # Final linear projection
-            self.logits = tf.layers.dense(inputs=output_embedding, units=len(self._target_int2vocab))
+            with tf.name_scope('FINAL_DENSE'):
+                logits = tf.layers.dense(inputs=output_embedding, units=len(self._target_int2vocab))
+
+        return logits
+
+    def _build_graph(self):
+
+        with self.graph.as_default():
+            self.logits = self._transformer_layer(inputs=self.x,
+                                                  decoder_inputs=self.decoder_inputs,
+                                                  drop_rate=self._drop_rate,
+                                                  is_training=self._is_training)
+
             self.preds = tf.to_int32(tf.argmax(self.logits, axis=-1))
 
             # Accuracy: Remove <PAD> Characters
@@ -154,23 +175,47 @@ class Transformer(object):
         self.saver.restore(sess, tf.train.latest_checkpoint('/media/disk1/public_milab/translation/transformer/zhkr_bible/log/'))
         print("Graph is Loaded from ckpt")
 
-    # TODO: Revise the decoding part ( use tf.while_loop() )
-    def _cond(self, i, inputs, *args):
-        return tf.less(i, self._max_len)
+    def translate(self, sess, enc_outputs, is_training):
+        """Greedy decoding translation
+        Args:
+            sess:
+            enc_outputs:
+            is_training:
 
-    def _body(self, i, inputs, ):
-        i = tf.add(i, 1)
-        outputs = self.__call__(inputs, self.decoder_inputs)
-        return i, outputs
+        Return:
+            translated tensor ( decode auto-regressively )
+        """
 
-    def translate(self, sess, dec_inputs, enc_outputs):
         self.load(sess)
-        loop_vars = []
-        translated_tensor = tf.while_loop(self._cond, self._body, loop_vars, shape_invariants=True)
+        max_len = self._max_len
+        func = lambda x1, x2: self.__call__(inputs=x1,
+                                            decoder_inputs=x2,
+                                            drop_rate=self._drop_rate,
+                                            is_training=is_training)
+
+        def _cond(i, *args):
+            return tf.less(i, max_len)
+
+        def _body(i, enc_outputs, decoder_inputs):
+            i = tf.add(i, 1)
+            logits = func(enc_outputs, decoder_inputs)
+            next_decoder_inputs = tf.to_int32(tf.argmax(logits, axis=-1))
+            # Masking (causality)
+            mask = tf.zeros_like(next_decoder_inputs)
+            next_decoder_inputs = tf.concat([next_decoder_inputs[:, :, :i], mask[:, :, i:]], axis=-1)
+
+            return i, enc_outputs, next_decoder_inputs
+
+        # TODO: CHECK THIS PART
+        init_dec_input = None
+        loop_vars = [tf.constant(0), enc_outputs, init_dec_input]
+        _, _, translated_tensor = tf.while_loop(_cond, _body, loop_vars)
+
         return translated_tensor
 
     def evaluate(self, sess, dev_dataset_iterator):
         """
+        Translate development data and save translated data
         Args:
             sess: tensorflow Session Object
             iterator: tf.Dataset.iterator Object
@@ -178,6 +223,7 @@ class Transformer(object):
         path = os.path.join(hp.logdir, 'result')
         if not os.path.isdir(path): os.mkdir(path)
 
+        f_result = codecs.open(os.path.join(path, 'result.txt'), 'w', 'utf-8')
         f_input = codecs.open(os.path.join(path, 'input.txt'), 'w', 'utf-8')
         f_preds = codecs.open(os.path.join(path, 'pred.txt'), 'w', 'utf-8')
         f_target = codecs.open(os.path.join(path, 'target.txt'), 'w', 'utf-8')
@@ -188,16 +234,16 @@ class Transformer(object):
         while 1:
             try:
                 inputs, targets = sess.run(dev_dataset_iterator.get_next())
-                preds = np.zeros((hp.batch_size, hp.maxlen), np.int32)
-                for j in tqdm(range(hp.maxlen)):
-                    _preds = sess.run(self.logits, feed_dict={self.x: inputs, self.y: preds})
-                    _preds = arg_max_target_lang(_preds)
-                    preds[:, j] = _preds[:, j]
+                predictions = sess.run(self.translate(sess=sess, enc_outputs=inputs, is_training=False))
 
-                for input_, pred, target in zip(inputs, preds, targets):
-                    f_input.write((" ".join([self._input_int2vocab.get(idx) for idx in input_])).split('<PAD>')[0] + '\n')
-                    f_preds.write((" ".join([self._target_int2vocab.get(idx) for idx in pred])).split('</S>')[0] + '\n')
-                    f_target.write((" ".join([self._target_int2vocab.get(idx) for idx in target])).split('</S>')[0] + '\n')
+                for input_, pred, target in zip(inputs, predictions, targets):
+                    input_string = (" ".join([self._input_int2vocab.get(idx) for idx in input_])).split('<PAD>')[0] + '\n'
+                    output_string = (" ".join([self._target_int2vocab.get(idx) for idx in pred])).split('</S>')[0] + '\n'
+                    target_string = (" ".join([self._target_int2vocab.get(idx) for idx in target])).split('</S>')[0] + '\n'
+
+                    f_input.write(input_string)
+                    f_preds.write(output_string)
+                    f_target.write(target_string)
 
                     reference.append((" ".join([self._target_int2vocab.get(idx) for idx in target])).split('</S>')[0])
                     translation.append((" ".join([self._target_int2vocab.get(idx) for idx in pred])).split('</S>')[0])
@@ -205,9 +251,14 @@ class Transformer(object):
             except tf.errors.OutOfRangeError:
                 break
 
-        print('BLEU : {}'.format(compute_bleu(reference_corpus= reference, translation_corpus=translation)))
+        f_result.close()
         f_input.close()
         f_preds.close()
         f_target.close()
+
+        print("DECODING PROCESS FINISH...")
+        print('BLEU score: {}'.format(compute_bleu(reference_corpus=reference, translation_corpus=translation)))
+
+
 
 
