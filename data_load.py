@@ -7,86 +7,6 @@ import codecs
 import os 
 
 
-class InputController(object):
-    """
-    controller: tensorflow placehodler tensor
-        if feed_dict : contoller == True => input tensor extracted from training dataset
-        if feed_dict: contoller == False => input tensor extracted from dev dataset
-
-
-    Notice : Initialize following operations
-        1. global_variables_initializer()
-        2. tables.initializer()
-        3. train_iterator_initializer()
-        4. dev_iterator_initializer()
-
-        Example:
-
-        with tf.Session() as sess:
-            sess.run([tf.global_variables_initializer(), train_iterator.initializer,
-            dev_iterator.initializer, tf.tables_initializer()])
-
-    """
-
-    def __init__(self, train_iterator, dev_iterator):
-        self._controller = tf.placeholder(tf.bool)
-        self.train_iterator = train_iterator
-        self.dev_iterator = dev_iterator
-
-    def get_input(self):
-        return (tf.cond(pred=self.controller,
-                        true_fn=lambda: self.train_iterator.get_next(),
-                        false_fn=lambda: self.dev_iterator.get_next()))
-
-    @property
-    def train_initializer(self):
-        return self.train_iterator.initializer
-
-    @property
-    def dev_initializer(self):
-        return self.dev_iterator.initializer
-
-    @property
-    def controller(self):
-        return self._controller
-
-
-# Input tensor for Training / Evaluation ( Developement )
-def get_dataset(mode, input_hash_table, target_hash_table):
-    """
-    Args:
-        mode: 'train' / 'dev'
-        hash_table : tf.contrib.lookup.HashTable() object, mapping from string to intger(index)
-
-    Returns:
-        tf.data.Dataset Iterator object
-    """
-
-    assert mode != None
-
-    input_dataset = tf.data.TextLineDataset([hp.zeroshot_train_input if mode == 'train' else hp.zeroshot_dev_input])
-    output_dataset = tf.data.TextLineDataset([hp.zeroshot_train_output if mode == 'train' else hp.zeroshot_dev_output])
-    output_dataset = output_dataset.map(lambda string: string + ' </S>')
-    dataset = tf.data.Dataset.zip((input_dataset, output_dataset))
-    dataset = dataset.map(lambda string_in, string_out: (tf.string_split([string_in]).values[:hp.maxlen],
-                                                         tf.string_split([string_out]).values[:hp.maxlen]))
-    dataset = dataset.map(lambda words_in, words_out: \
-                              (input_hash_table.lookup(words_in), target_hash_table.lookup(words_out)))
-    dataset = dataset.padded_batch(batch_size=hp.batch_size,
-                                   padded_shapes=(tf.TensorShape([hp.maxlen]), tf.TensorShape([hp.maxlen])))
-
-    # dev deataset => infinetly iterative.
-    if mode == 'dev':
-        dataset = dataset.repeat()
-
-    elif mode == 'train':
-        dataset = dataset.repeat(hp.num_epochs)
-
-    iterator = dataset.make_initializable_iterator()
-
-    return iterator
-
-
 def get_each_vocab(vocab_path):
     """
     Arg:
@@ -99,7 +19,7 @@ def get_each_vocab(vocab_path):
     vocab_dict ={}
 
     def _get_lang_from_file_name(file_name):
-        lang = file_name[-2:]
+        lang = file_name[-2:]  # assume that file format is like (vocab.en / vocab.ko last two char for lang)
         return lang.upper()
 
     for i in range(len(vocab_files)):
@@ -173,6 +93,85 @@ def load_data_set():
     """
     return train_iterator, dev_iterator
 
+
+class InputController(object):
+    """
+    controller: tensorflow placehodler tensor
+        if feed_dict : contoller == True => input tensor extracted from training dataset
+        if feed_dict: contoller == False => input tensor extracted from dev dataset
+
+
+    Notice : Initialize following operations
+        1. global_variables_initializer()
+        2. tables.initializer()
+        3. train_iterator_initializer()
+        4. dev_iterator_initializer()
+
+        Example:
+
+        with tf.Session() as sess:
+            sess.run([tf.global_variables_initializer(), train_iterator.initializer,
+            dev_iterator.initializer, tf.tables_initializer()])
+
+    """
+
+    def __init__(self, train_iterator, dev_iterator):
+        self._controller = tf.placeholder(tf.bool)
+        self.train_iterator = train_iterator
+        self.dev_iterator = dev_iterator
+
+    def get_input(self):
+        return (tf.cond(pred=self.controller,
+                        true_fn=lambda: self.train_iterator.get_next(),
+                        false_fn=lambda: self.dev_iterator.get_next()))
+
+    @property
+    def train_initializer(self):
+        return self.train_iterator.initializer
+
+    @property
+    def dev_initializer(self):
+        return self.dev_iterator.initializer
+
+    @property
+    def controller(self):
+        return self._controller
+
+
+# Input tensor for Training / Evaluation ( Developement )
+def get_dataset(mode, input_hash_table, target_hash_table):
+    """
+    Args:
+        mode: 'train' / 'dev'
+        hash_table : tf.contrib.lookup.HashTable() object, mapping from string to intger(index)
+
+    Returns:
+        tf.data.Dataset Iterator object
+    """
+    assert mode == 'train' or mode == 'dev'
+
+    input_dataset = tf.data.TextLineDataset([hp.zeroshot_train_input if mode == 'train' else hp.zeroshot_dev_input])
+    output_dataset = tf.data.TextLineDataset([hp.zeroshot_train_output if mode == 'train' else hp.zeroshot_dev_output])
+    output_dataset = output_dataset.map(lambda string: string + ' </S>')
+    dataset = tf.data.Dataset.zip((input_dataset, output_dataset))
+    dataset = dataset.map(lambda string_in, string_out: (tf.string_split([string_in]).values[:hp.maxlen],
+                                                         tf.string_split([string_out]).values[:hp.maxlen]))
+    dataset = dataset.map(lambda words_in, words_out: \
+                              (input_hash_table.lookup(words_in), target_hash_table.lookup(words_out)))
+    dataset = dataset.padded_batch(batch_size=hp.batch_size,
+                                   padded_shapes=(tf.TensorShape([hp.maxlen]), tf.TensorShape([hp.maxlen])))
+
+    # dev deataset => infinetly iterative.
+    if mode == 'dev':
+        dataset = dataset.repeat()
+
+    elif mode == 'train':
+        dataset = dataset.repeat(hp.num_epochs)
+
+    iterator = dataset.make_initializable_iterator()
+
+    return iterator
+
 ## Args
 vocab_path = hp.vocab_path
 minimum_count = hp.min_count
@@ -188,10 +187,11 @@ hash_value = tf.convert_to_tensor([zeroshot_vocab2int.get(key) for key in zerosh
 table = tf.contrib.lookup.HashTable(tf.contrib.lookup.KeyValueTensorInitializer(hash_key, hash_value), zeroshot_vocab2int['<UNK>'])
 
 # train / dev dataset iterator
-train_iterator = get_dataset('train', table)
-dev_iterator = get_dataset('dev', table)
-eval_iterator = get_dataset('eval', table)
+train_iterator = get_dataset('train', table, table)
+dev_iterator = get_dataset('dev', table, table)
+eval_iterator = get_dataset('eval', table, table)
 
 # print_vocab_info()
+
 
 

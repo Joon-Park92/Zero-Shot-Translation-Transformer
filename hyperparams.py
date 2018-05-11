@@ -1,10 +1,23 @@
 # -*- coding: utf-8 -*-
 #/usr/bin/python2
 
+import os
+
 class Hyperparams:
 
-    # vocab_path: containing each vocab of each languages ( gen by preprocess.py )
-    vocab_path = '/media/disk1/public_milab/translation/transformer/zhkr_bible/data/vocab' 
+    # preprocessor.py
+    data_path = '/media/disk1/public_milab/translation/DATA/OpenSubtitle2018'  # dir for law data (download dir)
+    save_path = '/media/disk1/public_milab/translation/zeroshot_exp/\
+    exp_zeroshot_2nd/zeroshot_SUBTITLE2018_jako/data'  # dir for training / development / vocabulary data (preprocessed)
+
+    languages = ['KO', 'JA', 'EN', 'ES']  # Languages that will be used for training and development (for download)
+    resampling_size = 1e6  # Maximum size of each parallel language data
+    dev_from = 'JA'  # Development data ( From Language )
+    dev_to = 'KO'  # Development data ( To Language )
+    dev_size = 1e4  # Define Development data size
+
+    # data_load.py
+    vocab_path = os.path.join(save_path, 'vocab')
     
     zeroshot_train_input = '/media/disk1/public_milab/translation/transformer/zhkr_bible/data/train/zeroshot_input'
     zeroshot_train_output = '/media/disk1/public_milab/translation/transformer/zhkr_bible/data/train/zeroshot_target'
@@ -13,7 +26,6 @@ class Hyperparams:
         
     # training
     batch_size = 256   # alias = N
-    lr = 0.0005 # learning rate. In paper, learning rate is adjusted to the global step.    
     
     # model
     maxlen = 50 # Maximum number of words in a sentence. alias = T.                
@@ -35,6 +47,5 @@ class Hyperparams:
     logdir = '/media/disk1/public_milab/translation/transformer/zhkr_bible/log_kor_designate'
     # log directory => summary / ckpt / result text file 
 
-    
-    
+hp = Hyperparams()
     

@@ -4,7 +4,7 @@ import itertools
 # Python2
 from urllib import urlretrieve
 # Python 3
-from urllib.request import urlretrieve
+# from urllib.request import urlretrieve
 
 from os.path import isfile, isdir
 from tqdm import tqdm

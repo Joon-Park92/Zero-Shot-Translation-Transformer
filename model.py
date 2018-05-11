@@ -38,6 +38,8 @@ class Transformer(object):
             target_int2vocab : dictionary map integer to vocab in target space
             is_training : control_tensor(tf.bool type) used for switching training / validation data
         """
+        assert num_units % num_head == 0
+
         self.graph = graph
 
         self.x = x
@@ -62,7 +64,8 @@ class Transformer(object):
         return self._transformer_layer(inputs=inputs,
                                        decoder_inputs=decoder_inputs,
                                        drop_rate=drop_rate,
-                                       is_training=is_training)
+                                       is_training=is_training,
+                                       reuse=tf.AUTO_REUSE)
 
     def _transformer_layer(self,
                            inputs,
@@ -70,7 +73,7 @@ class Transformer(object):
                            drop_rate,
                            is_training,
                            scope='Transformer',
-                           reuse=False):
+                           reuse=tf.AUTO_REUSE):
 
         with tf.variable_scope(name_or_scope=scope, reuse=reuse):
             with tf.name_scope('ENCODER'):
@@ -175,18 +178,15 @@ class Transformer(object):
         self.saver.restore(sess, tf.train.latest_checkpoint('/media/disk1/public_milab/translation/transformer/zhkr_bible/log/'))
         print("Graph is Loaded from ckpt")
 
-    def translate(self, sess, enc_outputs, is_training):
+    def translate(self, enc_outputs, is_training):
         """Greedy decoding translation
         Args:
-            sess:
             enc_outputs:
             is_training:
 
         Return:
             translated tensor ( decode auto-regressively )
         """
-
-        self.load(sess)
         max_len = self._max_len
         func = lambda x1, x2: self.__call__(inputs=x1,
                                             decoder_inputs=x2,
@@ -225,7 +225,7 @@ class Transformer(object):
 
         f_result = codecs.open(os.path.join(path, 'result.txt'), 'w', 'utf-8')
         f_input = codecs.open(os.path.join(path, 'input.txt'), 'w', 'utf-8')
-        f_preds = codecs.open(os.path.join(path, 'pred.txt'), 'w', 'utf-8')
+        f_output = codecs.open(os.path.join(path, 'output.txt'), 'w', 'utf-8')
         f_target = codecs.open(os.path.join(path, 'target.txt'), 'w', 'utf-8')
 
         reference = []
@@ -233,27 +233,38 @@ class Transformer(object):
 
         while 1:
             try:
-                inputs, targets = sess.run(dev_dataset_iterator.get_next())
-                predictions = sess.run(self.translate(sess=sess, enc_outputs=inputs, is_training=False))
+                inputs, targets = dev_dataset_iterator.get_next()
+                predictions = self.translate(enc_outputs=inputs, is_training=False)
+
+                inputs, targets, predictions = sess.run([inputs, targets, predictions])
 
                 for input_, pred, target in zip(inputs, predictions, targets):
-                    input_string = (" ".join([self._input_int2vocab.get(idx) for idx in input_])).split('<PAD>')[0] + '\n'
-                    output_string = (" ".join([self._target_int2vocab.get(idx) for idx in pred])).split('</S>')[0] + '\n'
-                    target_string = (" ".join([self._target_int2vocab.get(idx) for idx in target])).split('</S>')[0] + '\n'
+                    input_string = (" ".join([self._input_int2vocab.get(idx) for idx in input_])).split('<PAD>')[0]
+                    output_string = (" ".join([self._target_int2vocab.get(idx) for idx in pred])).split('</S>')[0]
+                    target_string = (" ".join([self._target_int2vocab.get(idx) for idx in target])).split('</S>')[0]
 
-                    f_input.write(input_string)
-                    f_preds.write(output_string)
-                    f_target.write(target_string)
+                    bleu = compute_bleu(reference_corpus=target_string, translation_corpus=target_string)
+                    result_string = "".join(['INPUTS: '+input_string+'\n',
+                                             'OUTPUT: '+output_string+'\n',
+                                             'TARGET: '+target_string+'\n',
+                                             'BLEU  : {}'.format(bleu)+'\n'])
+                    print(result_string+'\n')
 
-                    reference.append((" ".join([self._target_int2vocab.get(idx) for idx in target])).split('</S>')[0])
-                    translation.append((" ".join([self._target_int2vocab.get(idx) for idx in pred])).split('</S>')[0])
+                    f_input.write(input_string + '\n')
+                    f_output.write(output_string + '\n')
+                    f_target.write(target_string + '\n')
+                    f_result.write(result_string)
+
+                    if len(target_string.split()) >= 4 and len(output_string.split()) >= 4:
+                        reference.append(target_string)
+                        translation.append(output_string)
 
             except tf.errors.OutOfRangeError:
                 break
 
         f_result.close()
         f_input.close()
-        f_preds.close()
+        f_output.close()
         f_target.close()
 
         print("DECODING PROCESS FINISH...")

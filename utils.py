@@ -1,5 +1,5 @@
 import tensorflow as tf
-
+from nltk.translate import bleu_score
 
 def label_smoother(one_hot, epsilon=0.1):
     depth = one_hot.shape.as_list()[-1]
@@ -23,4 +23,9 @@ def warmup_learning_rate(d_model, step_num, warmup_step):
 
 
 def compute_bleu(reference_corpus, translation_corpus):
-    return NotImplementedError
+
+    if len(reference_corpus.split()) < 4 or len(translation_corpus.split()) < 4:
+        return 0.0
+
+    return bleu_score.sentence_bleu(references=reference_corpus.split(),
+                                    hypothesis=translation_corpus.split())
