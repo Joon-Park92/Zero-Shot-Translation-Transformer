@@ -165,7 +165,6 @@ class DataSaver(object):
             self.train_df = pd.DataFrame object, zero-shot training dataset ( input : <2EN> 안녕하세요 / target: Hello )
             self.dev_df = pd.DataFrame object, evaluation dataset ( inputs : こんにちは / target: 안녕하세요 )
         """
-        print('LOAD DATA... MERGE & MAKE TOKENS...')
         dev_from = dev_from.upper()
         dev_to = dev_to.upper()
 
@@ -174,35 +173,52 @@ class DataSaver(object):
         dev_key = "-".join(dev_key)
         assert dev_key in self.keys, "development language pair ( {} ) is not found".format(dev_key)
 
+        # Resample to reduce data size & accommodate ratio of data
+        print("\nRESAMPLING....")
+        for key in self.keys:
+            if key == dev_key:
+                self.df_dic[key] = self.df_dic[key].sample(n=dev_size)
+                print("{} pair(DEV) is resampled, size ({})".format(key, len(self.df_dic[key])))
+            else:
+                if len(self.df_dic[key]) >= resampling_size:
+                    print("{} pair is resampled ({}->{}, {})".format(key,
+                                                                     len(df_dic[key]),
+                                                                     resampling_size,
+                                                                     resampling_size / len(df_dic[key])))
+                    self.df_dic[key] = self.df_dic[key].sample(n=resampling_size)
+                else:
+                    print("\nWARNING: Unbalanced language data size")
+                    print("{} pair smaller than resample size ({}, Not changed)".format(key, len(self.df_dic[key])))
+                    self.df_dic[key] = self.df_dic[key].sample(frac=1.0)
+
+        # Make training data set
+        print('\nMERGE & MAKE TOKENS...')
         self.train_df = pd.DataFrame(columns=['FROM', 'TO'])
         for key in self.keys:
             if key == dev_key: continue # make training pair data except for development pair
             for i, col in enumerate(self.df_dic[key].columns):
-                FROM = self.df_dic[key][col]
+                FROM_lang = col
+                TO_lang = self.df_dic[key].columns[(i + 1) % 2]
+
+                FROM = self.df_dic[key][FROM_lang]
                 FROM = FROM.apply(lambda text: self._make_token(self.df_dic[key].columns[(i + 1) % 2], text))
                 FROM = FROM.apply(self._preprocess)
-                TO = self.df_dic[key][self.df_dic[key].columns[(i + 1) % 2]]
+                TO = self.df_dic[key][TO_lang]
                 TO = TO.apply(self._preprocess)
 
                 mono_pair = pd.DataFrame({'FROM': FROM, 'TO': TO})
-                if len(mono_pair) >= resampling_size:
-                    mono_pair = mono_pair.sample(n=resampling_size)
-                else:
-                    mono_pair = mono_pair.sample(frac=1.0)
-                    print("{} pair smaller than resample size ({}),\
-                     it could cause biased data".format(key, len(mono_pair)))
-
                 self.train_df = self.train_df.append(mono_pair)
 
-        FROM = self.df_dic[dev_key][dev_from].sample(frac=1.0).iloc[:dev_size]
+        FROM = self.df_dic[dev_key][dev_from]
         FROM = FROM.apply(lambda text: self._make_token(dev_to, text))
         FROM = FROM.apply(self._preprocess)
-        TO = self.df_dic[dev_key][dev_to].iloc[FROM.index]
+        TO = self.df_dic[dev_key][dev_to]
         TO = TO.apply(self._preprocess)
         self.dev_df = pd.DataFrame({'FROM': FROM, 'TO': TO})
 
         self.train_df = self.train_df.drop_duplicates()
         self.train_df = self.train_df[(self.train_df.FROM != "") | (self.train_df.TO != "")]
+        self.train_df = self.train_df.sample(frac=1.0)
         self.dev_df = self.dev_df.drop_duplicates()
         self.dev_df = self.dev_df[(self.dev_df.FROM != "") | (self.dev_df.TO != "")]
 
@@ -211,7 +227,7 @@ class DataSaver(object):
         train_path = os.path.join(path, 'train')
         dev_path = os.path.join(path, 'dev')
 
-        print("Writing TRAINING DATA...")
+        print("WRITE TRAINING DATA...")
         if not os.path.isdir(train_path):
             os.mkdir(train_path)
         with codecs.open(os.path.join(train_path, 'FROM'), 'w', encoding='utf-8') as f:
@@ -221,7 +237,7 @@ class DataSaver(object):
             for line in self.train_df.TO:
                 f.write(line.decode('utf-8') + '\n')
 
-        print("WRITING DEV DATA...")
+        print("WRITE DEV DATA...")
         if not os.path.isdir(dev_path):
             os.mkdir(dev_path)
         with codecs.open(os.path.join(dev_path, 'FROM'), 'w', encoding='utf-8') as f:
@@ -244,9 +260,9 @@ class DataSaver(object):
             for key in self.keys:
                 for col in self.df_dic[key].columns:
                     if col == lang:
-                        temp_df = temp_df.append(self.df_dic[key][col])
+                        temp_df = temp_df.append(self.df_dic[key].xs([col], axis=1))
 
-            count = Counter([word for sentence in temp_df for word in sentence.split()])
+            count = Counter([word for sentence in temp_df[lang] for word in sentence.split()])
             file_name = os.path.join(path, 'vocab.' + lang.lower())
             with codecs.open(file_name, 'w', encoding='utf-8') as f:
                 for word, cnt in count.most_common():
@@ -265,8 +281,9 @@ if __name__ == '__main__':
     df_dic = Loader.get_df_dic()
 
     # Print information about size of data
+    print('SIZE OF LAW DATA: ')
     for key in Loader.keys:
-        print('{} : {}'.format(key, len(df_dic[key])))
+        print('\t{} : {}'.format(key, len(df_dic[key])))
 
     # Pre-process and write(save) data to hard disk
     Saver = DataSaver(df_dic=df_dic, keys=Loader.keys, save_path=hp.save_path)
@@ -276,4 +293,5 @@ if __name__ == '__main__':
                  dev_size=hp.dev_size)
     Saver.write_df()
     Saver.write_vocab(languages=hp.languages)
+    print("PREPROCESSING DONE...")
 
