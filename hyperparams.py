@@ -7,10 +7,11 @@ class Hyperparams:
 
     # preprocessor.py
     data_path = '/media/disk1/public_milab/translation/DATA/OpenSubtitle2018'  # dir for law data (download dir)
-    save_path = '/media/disk1/public_milab/translation/zeroshot_exp/\
-    exp_zeroshot_2nd/zeroshot_SUBTITLE2018_jako/data'  # dir for training / development / vocabulary data (preprocessed)
+    save_path = '/media/disk1/public_milab/translation/transformer/\
+    transformer_base_1.0/train_data'  # dir for training / development / vocabulary data (preprocessed)
 
-    languages = ['KO', 'JA', 'EN', 'ES']  # Languages that will be used for training and development (for download)
+    # you can check possible languages in "http://opus.nlpl.eu/OpenSubtitles2018.php"
+    languages = ['KO', 'JA', 'EN']  # Languages that will be used for training and development (for download)
     resampling_size = 1e6  # Maximum size of each parallel language data
     dev_from = 'JA'  # Development data ( From Language )
     dev_to = 'KO'  # Development data ( To Language )

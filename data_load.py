@@ -1,3 +1,6 @@
+# -*- coding: utf-8 -*-
+#/usr/bin/python2
+
 from __future__ import print_function
 from __future__ import division
 from hyperparams import Hyperparams as hp
