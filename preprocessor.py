@@ -145,17 +145,21 @@ class DataSaver(object):
         self.save_path = save_path
 
     @staticmethod
+    def _make_token(lang, text):
+        token = '<' + lang.upper() + '> '
+        text = token + text
+        return text
+
+    @staticmethod
     def _preprocess(text):
         pre_text = re.sub("[\p{P}]+", "", text)
         pre_text = re.sub("[ ]{2,}", " ", pre_text)
         pre_text = re.sub("^[ ]", "", pre_text)
         return pre_text
 
-    @staticmethod
-    def _make_token(lang, text):
-        token = '<' + lang.upper() + '> '
-        text = token + text
-        return text
+    def _df_prerpocess(self, df):
+        for col in df.columns:
+            df[col] = df[col].apply(lambda x: self._preprocess(x))
 
     def get_df(self, max_len, resampling_size, dev_from, dev_to, dev_size):
         """  Shuffle / Make Token for training( like <2KO> <2EN> <2JA> ...)
@@ -173,18 +177,21 @@ class DataSaver(object):
         dev_key = "-".join(dev_key)
         assert dev_key in self.keys, "development language pair ( {} ) is not found".format(dev_key)
 
-        # Resample to reduce data size & accommodate ratio of data
-        print("\nRESAMPLING....")
+        print("\nPREPROCESSING & RESAMPLING....")
         for key in self.keys:
 
-            # Accommodate data length
+            # Remove redundant punctuations / blanks
+            self._df_prerpocess(df=self.df_dic[key])
+
+            # Remove Too long / Too short
             columns = self.df_dic[key].columns
             idx_1 = self.df_dic[key][columns[0]].apply(lambda x: len(x.split())) >= 4
-            idx_2 = self.df_dic[key][columns[0]].apply(lambda x: len(x.split())) < max_len
+            idx_2 = self.df_dic[key][columns[0]].apply(lambda x: len(x.split())) <= (max_len - 2)  # for (<2EN> / </S>
             idx_3 = self.df_dic[key][columns[1]].apply(lambda x: len(x.split())) >= 4
-            idx_4 = self.df_dic[key][columns[1]].apply(lambda x: len(x.split())) < max_len
+            idx_4 = self.df_dic[key][columns[1]].apply(lambda x: len(x.split())) <= (max_len - 2)  # for (<2EN> / </S>
             self.df_dic[key] = self.df_dic[key][idx_1 & idx_2 & idx_3 & idx_4]
 
+            # Resample data to make the balnce between languages
             if key == dev_key:
                 self.df_dic[key] = self.df_dic[key].sample(n=dev_size)
                 print("{} pair(DEV) is resampled, size ({})".format(key, len(self.df_dic[key])))
@@ -211,16 +218,13 @@ class DataSaver(object):
 
                 FROM = self.df_dic[key][FROM_lang]
                 FROM = FROM.apply(lambda text: self._make_token(self.df_dic[key].columns[(i + 1) % 2], text))
-                FROM = FROM.apply(self._preprocess)
                 TO = self.df_dic[key][TO_lang]
-                TO = TO.apply(self._preprocess)
 
                 mono_pair = pd.DataFrame({'FROM': FROM, 'TO': TO})
                 self.train_df = self.train_df.append(mono_pair)
 
         FROM = self.df_dic[dev_key][dev_from]
         FROM = FROM.apply(lambda text: self._make_token(dev_to, text))
-        FROM = FROM.apply(self._preprocess)
         TO = self.df_dic[dev_key][dev_to]
         TO = TO.apply(self._preprocess)
         self.dev_df = pd.DataFrame({'FROM': FROM, 'TO': TO})
@@ -237,6 +241,8 @@ class DataSaver(object):
         dev_path = os.path.join(path, 'dev')
 
         print("WRITE TRAINING DATA...")
+        if not os.path.isdir(path):
+            os.mkdir(path)
         if not os.path.isdir(train_path):
             os.mkdir(train_path)
         with codecs.open(os.path.join(train_path, 'FROM'), 'w', encoding='utf-8') as f:

@@ -23,7 +23,13 @@ class Trainer(object):
         Model = self.model
         Maker = self.maker
 
-        hparams = "units_{}_head_{}_block_{}".format(hp.num_units, hp.num_heads, hp.num_blocks)
+        hparams = "{}to{}_batch_{}_mincnt_{}_units_{}_head_{}_block_{}".format(hp.dev_from,
+                                                                               hp.dev_to,
+                                                                               hp.batch_size,
+                                                                               hp.minimum_count,
+                                                                               hp.num_units,
+                                                                               hp.num_heads,
+                                                                               hp.num_blocks)
         train_path = os.path.join(hp.train_path, hparams)
         dev_path = os.path.join(train_path, 'dev')
 
@@ -55,7 +61,7 @@ class Trainer(object):
                                                   self.is_training: True})
 
                 if step % hp.save_every_n_step == 1:
-                    Model.save(sess=sess, save_path=os.path.join(train_path, "_step: {}".format(step)))
+                    Model.save(sess=sess, save_path=os.path.join(train_path, "{}_step".format(hparams)))
                     print("Model is saved - step : {}".format(step))
 
                 if step % hp.evaluate_every_n_step == 1:

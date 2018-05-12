@@ -76,7 +76,7 @@ class ZeroShotVocabMaker(object):
 
     def print_vocab_info(self):
         language = self.vocab_dic.keys()
-        print('The number of words with a minimum count greater than {}...\n'.format(self.minimum_count))
+        print('\nThe number of words with a minimum count greater than {}...\n'.format(self.minimum_count))
         for i in range(len(language)):
             print('size of vaocab {} : {}'.format(language[i], len(self.vocab_dic[language[i]])))
         print('size of vocab total : {}'.format(sum([len(self.vocab_dic[lang]) for lang in language])))

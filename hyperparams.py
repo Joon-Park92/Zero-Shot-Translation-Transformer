@@ -40,12 +40,13 @@ class Hyperparams:
     num_epochs = 100
     
     # train.py
+    # train path : path for saving event / graph ...
+    train_path = '/media/disk1/public_milab/translation/transformer/transformer_base_1.0/train/'
     num_units = 256
     num_blocks = 6  # number of encoder/decoder blocks
     num_heads = 8
     dropout_rate = 0.2
     warmup_step = 10000
-    train_path = '/media/disk1/public_milab/translation/transformer/transformer_base_1.0/train/'
 
     summary_every_n_step = 100
     save_every_n_step = 20
