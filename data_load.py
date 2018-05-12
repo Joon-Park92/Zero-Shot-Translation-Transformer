@@ -72,7 +72,7 @@ class ZeroShotVocabMaker(object):
         zeroshot_vocab2int = {vocab: idx for idx, vocab in enumerate(zeroshot_vocab)}
         zeroshot_int2vocab = {idx: vocab for idx, vocab in enumerate(zeroshot_vocab)}
 
-        self.zeroshot_vocab2int, self.zeroshot_int2vocab =  zeroshot_vocab2int, zeroshot_int2vocab
+        self.zeroshot_voca2int, self.zeroshot_int2voca = zeroshot_vocab2int, zeroshot_int2vocab
 
     def print_vocab_info(self):
         language = self.vocab_dic.keys()
@@ -136,14 +136,14 @@ class TFDataSetMaker(object):
         output_dataset = tf.data.TextLineDataset(
             [hp.zeroshot_train_output if mode == 'train' else hp.zeroshot_dev_output])
         output_dataset = output_dataset.map(lambda string: string + ' </S>')
-
         dataset = tf.data.Dataset.zip((input_dataset, output_dataset))
+        dataset = dataset.map(lambda string_in, string_out: (tf.string_split([string_in]).values[:hp.max_len],
+                                                             tf.string_split([string_out]).values[:hp.max_len]))
         dataset = dataset.map(lambda words_in, words_out:
                               (input_hash_table.lookup(words_in), target_hash_table.lookup(words_out)))
         dataset = dataset.padded_batch(batch_size=hp.batch_size,
                                        padded_shapes=(tf.TensorShape([hp.max_len]), tf.TensorShape([hp.max_len])))
 
-        # dev deataset => infinetly iterative.
         if mode == 'dev':
             dataset = dataset.repeat()
 

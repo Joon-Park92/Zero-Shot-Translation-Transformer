@@ -42,7 +42,6 @@ class Hyperparams:
     # train.py
     num_units = 256
     num_blocks = 6  # number of encoder/decoder blocks
-    hidden_units = 256 # alias = C
     num_heads = 8
     dropout_rate = 0.2
     warmup_step = 10000

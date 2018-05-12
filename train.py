@@ -23,15 +23,21 @@ class Trainer(object):
         Model = self.model
         Maker = self.maker
 
-        if not os.path.isdir(hp.save_path): os.mkdir(hp.save_path)
-        if not os.path.isdir(os.path.join(hp.train_path, 'dev')): os.mkdir(os.path.join(hp.logdir, 'dev'))
-        train_writer = tf.summary.FileWriter(logdir=hp.save_path, graph=sess.graph)
-        dev_writer = tf.summary.FileWriter(logdir=os.path.join(hp.train_path, 'dev'))
+        hparams = "units_{}_head_{}_block_{}".format(hp.num_units, hp.num_heads, hp.num_blocks)
+        train_path = os.path.join(hp.train_path, hparams)
+        dev_path = os.path.join(train_path, 'dev')
+
+        if not os.path.isdir(hp.train_path): os.mkdir(hp.train_path)
+        if not os.path.isdir(hp.train_path): os.mkdir(train_path)
+        if not os.path.isdir(hp.train_path): os.mkdir(dev_path)
+
+        train_writer = tf.summary.FileWriter(logdir=train_path, graph=sess.graph)
+        dev_writer = tf.summary.FileWriter(logdir=dev_path)
 
         sess.run(Maker.get_init_ops())
 
-        if tf.train.latest_checkpoint(hp.train_path) is not None:
-            Model.load(sess)
+        if tf.train.latest_checkpoint(train_path) is not None:
+            Model.load(sess=sess, save_path=tf.train.latest_checkpoint(checkpoint_dir=train_path))
 
         step = sess.run(Model.global_step, feed_dict={Maker.controller: False})
 
@@ -49,7 +55,7 @@ class Trainer(object):
                                                   self.is_training: True})
 
                 if step % hp.save_every_n_step == 1:
-                    Model.save(sess)
+                    Model.save(sess=sess, save_path=os.path.join(train_path, "_step: {}".format(step)))
                     print("Model is saved - step : {}".format(step))
 
                 if step % hp.evaluate_every_n_step == 1:
@@ -88,8 +94,7 @@ if __name__ == '__main__':
                                 drop_rate=hp.dropout_rate,
                                 is_training=is_training,
                                 warmup_step=hp.warmup_step,
-                                max_len=hp.max_len,
-                                save_path=hp.save_path)
+                                max_len=hp.max_len)
 
-            trainer = Trainer(sess=sess, model=Transformer, maker=DataSetMaker, is_training=is_training)
+            trainer = Trainer(sess=sess, model=Model, maker=DataSetMaker, is_training=is_training)
             trainer.train()

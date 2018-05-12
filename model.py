@@ -27,8 +27,7 @@ class Transformer(object):
                  drop_rate,
                  is_training,
                  warmup_step,
-                 max_len,
-                 save_path):
+                 max_len):
         """
         Args:
             x : input 2-D tensor [ N, T ]
@@ -50,7 +49,6 @@ class Transformer(object):
         self._num_blocks = num_blocks
         self._warmup_step = warmup_step
         self._max_len = max_len
-        self._save_path = save_path
 
         self._input_int2vocab = input_int2vocab
         self._target_int2vocab = target_int2vocab
@@ -147,7 +145,7 @@ class Transformer(object):
                                   true_fn=lambda: label_smoother(tf.one_hot(self.y, depth=len(self._target_int2vocab))),
                                   false_fn=lambda: tf.one_hot(self.y, depth=len(self._target_int2vocab)))
         self.loss = tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=self.y_smoothed)
-        self.mean_loss = tf.reduce_sum(self.loss*is_target, axis=-1) / (tf.reduce_sum(is_target))
+        self.mean_loss = tf.reduce_sum(self.loss * is_target) / (tf.reduce_sum(is_target))
 
         # Training Scheme
         self.global_step = tf.get_variable(name='global_step',
@@ -165,14 +163,13 @@ class Transformer(object):
         tf.summary.scalar('mean_loss', self.mean_loss)
         self.merged = tf.summary.merge_all()
         self.saver = tf.train.Saver()
+        print("Model is built...")
 
-    def save(self, sess):
-        self.saver.save(sess=sess, save_path=self._save_path , global_step=self.global_step)
-        print("Graph is Saved")
+    def save(self, sess, save_path):
+        self.saver.save(sess=sess, save_path=save_path, global_step=self.global_step)
     
-    def load(self, sess):
-        self.saver.restore(sess=sess, save_path=tf.train.latest_checkpoint(checkpoint_dir=self._save_path))
-        print("Graph is Loaded from ckpt")
+    def load(self, sess, save_path):
+        self.saver.restore(sess=sess, save_path=save_path)
 
     def translate(self, enc_outputs, is_training):
         """Greedy decoding translation
