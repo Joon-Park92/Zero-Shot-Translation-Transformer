@@ -67,7 +67,7 @@ class Transformer(object):
                            decoder_inputs,
                            drop_rate,
                            is_training,
-                           scope='Transformer',
+                           scope='Transformer_body',
                            reuse=tf.AUTO_REUSE):
 
         with tf.variable_scope(name_or_scope=scope, reuse=reuse):
@@ -125,56 +125,58 @@ class Transformer(object):
         return logits
 
     def _build_graph(self):
+        with tf.name_scope('TRANSFORMER'):
+            self.logits = self._transformer_layer(inputs=self.x,
+                                                  decoder_inputs=self.decoder_inputs,
+                                                  drop_rate=self._drop_rate,
+                                                  is_training=self._is_training)
 
-        self.logits = self._transformer_layer(inputs=self.x,
-                                              decoder_inputs=self.decoder_inputs,
-                                              drop_rate=self._drop_rate,
-                                              is_training=self._is_training)
+            with tf.name_scope('Loss'):
+                self.preds = tf.to_int32(tf.argmax(self.logits, axis=-1))
+                # Accuracy: Remove <PAD> Characters
+                is_target = tf.to_float(tf.not_equal(self.y, 0))
+                total_num = tf.reduce_sum(is_target)
+                correct_num = tf.reduce_sum(tf.to_float(tf.equal(self.preds, self.y)) * is_target)
+                self.acc = correct_num / total_num
 
-        self.preds = tf.to_int32(tf.argmax(self.logits, axis=-1))
+                # Loss: Remove <PAD> Characters
+                self.y_smoothed = tf.cond(pred=self._is_training,
+                                          true_fn=lambda: label_smoother(tf.one_hot(self.y, depth=len(self._target_int2vocab))),
+                                          false_fn=lambda: tf.one_hot(self.y, depth=len(self._target_int2vocab)))
+                self.loss = tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=self.y_smoothed)
+                self.mean_loss = tf.reduce_sum(self.loss * is_target) / (tf.reduce_sum(is_target))
 
-        # Accuracy: Remove <PAD> Characters
-        is_target = tf.to_float(tf.not_equal(self.y, 0))
-        total_num = tf.reduce_sum(is_target)
-        correct_num = tf.reduce_sum(tf.to_float(tf.equal(self.preds, self.y)) * is_target)
-        self.acc = total_num / correct_num
-        tf.summary.scalar('accuracy', self.acc)
+            with tf.name_scope('Training_Scheme'):
+                self.global_step = tf.get_variable(name='global_step',
+                                                   shape=[],
+                                                   dtype=tf.int32,
+                                                   initializer=tf.constant_initializer(value=1, dtype=tf.int32),
+                                                   trainable=False)
+                self.learning_rate = warmup_learning_rate(d_model=self._num_units,
+                                                          step_num=self.global_step,
+                                                          warmup_step=self._warmup_step)
+                self.optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate, beta1=0.9, beta2=0.98, epsilon=1e-9)
+                self.train_op = self.optimizer.minimize(self.mean_loss, global_step=self.global_step)
 
-        # Loss: Remove <PAD> Characters
-        self.y_smoothed = tf.cond(pred=self._is_training,
-                                  true_fn=lambda: label_smoother(tf.one_hot(self.y, depth=len(self._target_int2vocab))),
-                                  false_fn=lambda: tf.one_hot(self.y, depth=len(self._target_int2vocab)))
-        self.loss = tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=self.y_smoothed)
-        self.mean_loss = tf.reduce_sum(self.loss * is_target) / (tf.reduce_sum(is_target))
+            with tf.name_scope('Summary'):
+                tf.summary.scalar('accuracy', self.acc)
+                tf.summary.scalar('mean_loss', self.mean_loss)
+                tf.summary.scalar('learning_rate', self.learning_rate)
 
-        # Training Scheme
-        self.global_step = tf.get_variable(name='global_step',
-                                           shape=[],
-                                           dtype=tf.int32,
-                                           initializer=tf.constant_initializer(value=1, dtype=tf.int32),
-                                           trainable=False)
-        self.optimizer = tf.train.AdamOptimizer(learning_rate=warmup_learning_rate(d_model=self._num_units,
-                                                                                   step_num=self.global_step,
-                                                                                   warmup_step=self._warmup_step),
-                                                beta1=0.9, beta2=0.98, epsilon=1e-9)
-        self.train_op = self.optimizer.minimize(self.mean_loss, global_step=self.global_step)
-
-        # Summary
-        tf.summary.scalar('mean_loss', self.mean_loss)
-        self.merged = tf.summary.merge_all()
-        self.saver = tf.train.Saver()
+            self.merged = tf.summary.merge_all()
+            self.saver = tf.train.Saver()
         print("Model is built...")
 
     def save(self, sess, save_path):
         self.saver.save(sess=sess, save_path=save_path, global_step=self.global_step)
     
     def load(self, sess, save_path):
-        self.saver.restore(sess=sess, save_path=save_path)
+        self.saver.restore(sess=sess, save_path=tf.train.latest_checkpoint(checkpoint_dir=save_path))
 
-    def translate(self, enc_outputs, is_training):
+    def translate(self, enc_inputs, is_training):
         """Greedy decoding translation
         Args:
-            enc_outputs:
+            enc_inputs:
             is_training:
 
         Return:
@@ -189,20 +191,26 @@ class Transformer(object):
         def _cond(i, *args):
             return tf.less(i, max_len)
 
-        def _body(i, enc_outputs, decoder_inputs):
+        def _body(i, enc_in, dec_in):
             i = tf.add(i, 1)
-            logits = func(enc_outputs, decoder_inputs)
+            logits = func(enc_in, dec_in)
             next_decoder_inputs = tf.to_int32(tf.argmax(logits, axis=-1))
             # Masking (causality)
             mask = tf.zeros_like(next_decoder_inputs)
-            next_decoder_inputs = tf.concat([next_decoder_inputs[:, :, :i], mask[:, :, i:]], axis=-1)
+            next_decoder_inputs = tf.concat([next_decoder_inputs[:, :(i+1)], mask[:, (i+1):]], axis=-1)
+            next_decoder_inputs.set_shape([None, max_len])
+            return i, enc_in, next_decoder_inputs
 
-            return i, enc_outputs, next_decoder_inputs
+        init_dec_input = np.zeros(shape=[max_len])
+        init_dec_input[0] = 2  # <S>
+        init_dec_input = tf.zeros_like(enc_inputs, dtype=tf.int32) \
+                         + tf.convert_to_tensor(init_dec_input, dtype=tf.int32)
 
-        # TODO: CHECK THIS PART
-        init_dec_input = None
-        loop_vars = [tf.constant(0), enc_outputs, init_dec_input]
-        _, _, translated_tensor = tf.while_loop(_cond, _body, loop_vars)
+        loop_vars = [tf.constant(1), enc_inputs, init_dec_input]
+        _, _, translated_tensor = tf.while_loop(cond=_cond,
+                                                body=_body,
+                                                loop_vars=loop_vars,
+                                                back_prop=is_training)
 
         return translated_tensor
 
@@ -211,9 +219,10 @@ class Transformer(object):
         Translate development data and save translated data
         Args:
             sess: tensorflow Session Object
-            iterator: tf.Dataset.iterator Object
+            dev_dataset_iterator: tf.Dataset.iterator Object
         """
-        path = os.path.join(hp.logdir, 'result')
+        train_path = add_hp_to_train_path(train_path=hp.train_path)
+        path = os.path.join(train_path, 'result')
         if not os.path.isdir(path): os.mkdir(path)
 
         f_result = codecs.open(os.path.join(path, 'result.txt'), 'w', 'utf-8')
@@ -227,7 +236,7 @@ class Transformer(object):
         while 1:
             try:
                 inputs, targets = dev_dataset_iterator.get_next()
-                predictions = self.translate(enc_outputs=inputs, is_training=False)
+                predictions = self.translate(enc_inputs=inputs, is_training=False)
 
                 inputs, targets, predictions = sess.run([inputs, targets, predictions])
 
@@ -262,7 +271,3 @@ class Transformer(object):
 
         print("DECODING PROCESS FINISH...")
         print('BLEU score: {}'.format(compute_bleu(reference_corpus=reference, translation_corpus=translation)))
-
-
-
-

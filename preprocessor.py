@@ -146,7 +146,7 @@ class DataSaver(object):
 
     @staticmethod
     def _make_token(lang, text):
-        token = '<' + lang.upper() + '> '
+        token = '<2' + lang.upper() + '> '
         text = token + text
         return text
 

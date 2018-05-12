@@ -1,5 +1,7 @@
 import tensorflow as tf
 from nltk.translate import bleu_score
+from hyperparams import hp
+import os
 
 def label_smoother(one_hot, epsilon=0.1):
     depth = one_hot.shape.as_list()[-1]
@@ -29,3 +31,18 @@ def compute_bleu(reference_corpus, translation_corpus):
 
     return bleu_score.sentence_bleu(references=reference_corpus.split(),
                                     hypothesis=translation_corpus.split())
+
+
+def get_hp():
+    hparams = "{}{}_batch_{}_mincnt_{}_units_{}_head_{}_block_{}".format(hp.dev_from,
+                                                                         hp.dev_to,
+                                                                         hp.batch_size,
+                                                                         hp.minimum_count,
+                                                                         hp.num_units,
+                                                                         hp.num_heads,
+                                                                         hp.num_blocks)
+    return hparams
+
+
+def add_hp_to_train_path(train_path):
+    return os.path.join(train_path, get_hp())

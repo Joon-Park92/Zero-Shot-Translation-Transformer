@@ -34,7 +34,7 @@ class Hyperparams:
     zeroshot_train_input = os.path.join(save_path, 'train', 'FROM')  # training data file (FROM)
     zeroshot_train_output = os.path.join(save_path, 'train', 'TO')  # training data file (TO)
     zeroshot_dev_input = os.path.join(save_path, 'dev', 'FROM')  # development data file (FROM)
-    zeroshot_dev_output = os.path.join(save_path, 'dev', 'FROM')  # development data file (TO)
+    zeroshot_dev_output = os.path.join(save_path, 'dev', 'TO')  # development data file (TO)
 
     batch_size = 256
     num_epochs = 100

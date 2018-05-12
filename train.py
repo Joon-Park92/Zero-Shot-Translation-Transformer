@@ -7,7 +7,7 @@ import os
 from data_load import ZeroShotVocabMaker, TFDataSetMaker
 from model import Transformer
 from hyperparams import hp
-
+from utils import *
 
 class Trainer(object):
 
@@ -23,14 +23,8 @@ class Trainer(object):
         Model = self.model
         Maker = self.maker
 
-        hparams = "{}to{}_batch_{}_mincnt_{}_units_{}_head_{}_block_{}".format(hp.dev_from,
-                                                                               hp.dev_to,
-                                                                               hp.batch_size,
-                                                                               hp.minimum_count,
-                                                                               hp.num_units,
-                                                                               hp.num_heads,
-                                                                               hp.num_blocks)
-        train_path = os.path.join(hp.train_path, hparams)
+        # train_path are variable depending on hyperparams
+        train_path = add_hp_to_train_path(train_path=hp.train_path)
         dev_path = os.path.join(train_path, 'dev')
 
         if not os.path.isdir(hp.train_path): os.mkdir(hp.train_path)
@@ -43,17 +37,18 @@ class Trainer(object):
         sess.run(Maker.get_init_ops())
 
         if tf.train.latest_checkpoint(train_path) is not None:
-            Model.load(sess=sess, save_path=tf.train.latest_checkpoint(checkpoint_dir=train_path))
+            Model.load(sess=sess, save_path=train_path)
 
         step = sess.run(Model.global_step, feed_dict={Maker.controller: False})
 
         while True:
             try:
                 if step % hp.summary_every_n_step == 0:
-                    _, step, merged = sess.run([Model.train_op, Model.global_step, Model.merged],
-                                               feed_dict={Maker.controller: True,
-                                                          self.is_training: True})
+                    _, loss, step, merged = sess.run([Model.train_op, Model.mean_loss, Model.global_step, Model.merged],
+                                                     feed_dict={Maker.controller: True,
+                                                                self.is_training: True})
                     train_writer.add_summary(merged, step)
+                    print('Training... TRAINING LOSS: {} / STEP: {}'.format(loss, step))
 
                 else:
                     _, step = sess.run([Model.train_op, Model.global_step],
@@ -61,13 +56,13 @@ class Trainer(object):
                                                   self.is_training: True})
 
                 if step % hp.save_every_n_step == 1:
-                    Model.save(sess=sess, save_path=os.path.join(train_path, "{}_step".format(hparams)))
+                    Model.save(sess=sess, save_path=os.path.join(train_path, get_hp() + "_step"))
                     print("Model is saved - step : {}".format(step))
 
                 if step % hp.evaluate_every_n_step == 1:
-                    _, step, merged = sess.run([Model.train_op, Model.global_step, Model.merged],
-                                               feed_dict={Maker.controller: False,
-                                                          self.is_training: False})
+                    step, merged = sess.run([Model.global_step, Model.merged],
+                                            feed_dict={Maker.controller: False,
+                                                       self.is_training: False})
                     dev_writer.add_summary(merged, step)
 
             except tf.errors.OutOfRangeError:
@@ -83,13 +78,14 @@ if __name__ == '__main__':
 
     with g.as_default():
         with tf.Session() as sess:
-            VocabMaker = ZeroShotVocabMaker(vocab_path=hp.vocab_path, minimum_count=hp.minimum_count)
-            DataSetMaker = TFDataSetMaker(zeroshot_voca2int=VocabMaker.zeroshot_voca2int,
-                                          zeroshot_int2voca=VocabMaker.zeroshot_int2voca)
+            with tf.name_scope('DataGenerate'):
+                VocabMaker = ZeroShotVocabMaker(vocab_path=hp.vocab_path, minimum_count=hp.minimum_count)
+                DataSetMaker = TFDataSetMaker(zeroshot_voca2int=VocabMaker.zeroshot_voca2int,
+                                              zeroshot_int2voca=VocabMaker.zeroshot_int2voca)
 
-            input_tensor, target_tensor = DataSetMaker.get_input_tensor()
+                input_tensor, target_tensor = DataSetMaker.get_input_tensor()
+
             is_training = tf.placeholder(tf.bool)  # control training / eval mode
-
             Model = Transformer(x=input_tensor,
                                 y=target_tensor,
                                 input_int2vocab=VocabMaker.zeroshot_int2voca,
@@ -102,5 +98,6 @@ if __name__ == '__main__':
                                 warmup_step=hp.warmup_step,
                                 max_len=hp.max_len)
 
-            trainer = Trainer(sess=sess, model=Model, maker=DataSetMaker, is_training=is_training)
-            trainer.train()
+            with tf.name_scope('Trainer_scope'):
+                trainer = Trainer(sess=sess, model=Model, maker=DataSetMaker, is_training=is_training)
+                trainer.train()
