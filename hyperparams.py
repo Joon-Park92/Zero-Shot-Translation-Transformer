@@ -5,48 +5,52 @@ import os
 
 class Hyperparams:
 
-    # preprocessor.py
-    data_path = '/media/disk1/public_milab/translation/DATA/OpenSubtitle2018'  # dir for law data (download dir)
-    save_path = '/media/disk1/public_milab/translation/transformer/\
-    transformer_base_1.0/train_data'  # dir for training / development / vocabulary data (preprocessed)
+    # preprocessor.py - DownLoad & Preprocess & Save data to disk
 
+    # data_path: dir for law data (download dir)
+    data_path = '/media/disk1/public_milab/translation/DATA/OpenSubtitle2018'
+    # save_path: dir for [training / development / vocabulary data] (preprocessed data will be save at this dir)
+    save_path = '/media/disk1/public_milab/translation/transformer/transformer_base_1.0/train_data'
+    # languages: Languages that will be used for training and development (for download)
     # you can check possible languages in "http://opus.nlpl.eu/OpenSubtitles2018.php"
-    languages = ['KO', 'JA', 'EN']  # Languages that will be used for training and development (for download)
-    resampling_size = 1e6  # Maximum size of each parallel language data
-    dev_from = 'JA'  # Development data ( From Language )
-    dev_to = 'KO'  # Development data ( To Language )
-    dev_size = 1e4  # Define Development data size
+    languages = ['KO', 'JA', 'EN']
+    # resampling_size: # Maximum size of each parallel language data
+    resampling_size = int(1e6)
+    # dev_from / dev_t0 Development data ( From Language / To Language )
+    dev_from = 'JA'
+    dev_to = 'KO'
+    # dev_size: Define Development data size
+    dev_size = int(1e4)
+    # max_len: Maximum length of tokenized data
+    max_len = 100
+
 
     # data_load.py
+
+    # vocab_path: dir contains vocab files
     vocab_path = os.path.join(save_path, 'vocab')
-    
-    zeroshot_train_input = '/media/disk1/public_milab/translation/transformer/zhkr_bible/data/train/zeroshot_input'
-    zeroshot_train_output = '/media/disk1/public_milab/translation/transformer/zhkr_bible/data/train/zeroshot_target'
-    zeroshot_dev_input = '/media/disk1/public_milab/translation/transformer/zhkr_bible/data/dev/zeroshot_input'
-    zeroshot_dev_output = '/media/disk1/public_milab/translation/transformer/zhkr_bible/data/dev/zeroshot_target'
-        
-    # training
-    batch_size = 256   # alias = N
-    
-    # model
-    maxlen = 50 # Maximum number of words in a sentence. alias = T.                
-    min_count = 0  # words whose occurred less than min_cnt are encoded as <UNK>.
-    hidden_units = 256 # alias = C
-    num_blocks = 3 # number of encoder/decoder blocks
+    # minimum_count: Vocab having lower frequency than minimum count will be discarded
+    minimum_count = 10
+    zeroshot_train_input = os.path.join(save_path, 'train', 'FROM')  # training data file (FROM)
+    zeroshot_train_output = os.path.join(save_path, 'train', 'TO')  # training data file (TO)
+    zeroshot_dev_input = os.path.join(save_path, 'dev', 'FROM')  # development data file (FROM)
+    zeroshot_dev_output = os.path.join(save_path, 'dev', 'FROM')  # development data file (TO)
+
+    batch_size = 256
     num_epochs = 100
+    
+    # train.py
+    num_units = 256
+    num_blocks = 6  # number of encoder/decoder blocks
+    hidden_units = 256 # alias = C
     num_heads = 8
     dropout_rate = 0.2
-    sinusoid = False  # If True, use sinusoid. If false, positional embedding.
-        
-    #config
-    target_designated = True
-    zeroshot_target_lang = 'KO'
+    warmup_step = 10000
+    train_path = '/media/disk1/public_milab/translation/transformer/transformer_base_1.0/train/'
+
     summary_every_n_step = 100
-    save_every_n_step = 500
-    evaluate_every_n_step = 300
-    max_to_keep= 3
-    logdir = '/media/disk1/public_milab/translation/transformer/zhkr_bible/log_kor_designate'
-    # log directory => summary / ckpt / result text file 
+    save_every_n_step = 20
+    evaluate_every_n_step = 20
 
 hp = Hyperparams()
-    
+

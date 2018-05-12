@@ -16,20 +16,19 @@ from utils import *
 
 class Transformer(object):
 
-    def __init__(self, graph,
+    def __init__(self,
                  x,
                  y,
                  input_int2vocab,
                  target_int2vocab,
                  num_units,
                  num_blocks,
-                 num_head,
+                 num_heads,
                  drop_rate,
                  is_training,
-                 save_dir,
                  warmup_step,
                  max_len,
-                 config):
+                 save_path):
         """
         Args:
             x : input 2-D tensor [ N, T ]
@@ -38,9 +37,7 @@ class Transformer(object):
             target_int2vocab : dictionary map integer to vocab in target space
             is_training : control_tensor(tf.bool type) used for switching training / validation data
         """
-        assert num_units % num_head == 0
-
-        self.graph = graph
+        assert num_units % num_heads == 0, "num_units must can be divided by num_head"
 
         self.x = x
         self.y = y
@@ -48,17 +45,17 @@ class Transformer(object):
         self.decoder_inputs = tf.concat((tf.ones_like(self.y[:, :1]) * 2, self.y[:, :-1]), -1)
 
         self._num_units = num_units
-        self._num_head = num_head
+        self._num_heads = num_heads
         self._drop_rate = drop_rate
         self._num_blocks = num_blocks
         self._warmup_step = warmup_step
         self._max_len = max_len
+        self._save_path = save_path
 
         self._input_int2vocab = input_int2vocab
         self._target_int2vocab = target_int2vocab
         self._is_training = is_training
         self._build_graph()
-        self._save_dir = save_dir
 
     def __call__(self, inputs, decoder_inputs, drop_rate, is_training):
         return self._transformer_layer(inputs=inputs,
@@ -94,7 +91,7 @@ class Transformer(object):
                 for i in range(1, self._num_blocks + 1):
                     input_embedding = encoding_sublayer(input_embedding=input_embedding,
                                                         num_units=self._num_units,
-                                                        num_heads=self._num_head,
+                                                        num_heads=self._num_heads,
                                                         drop_rate=drop_rate,
                                                         is_training=is_training,
                                                         scope='enc_block_{}'.format(i),
@@ -117,7 +114,7 @@ class Transformer(object):
                     output_embedding = decoding_sublayer(output_embedding=output_embedding,
                                                          input_embedding=input_embedding,
                                                          num_units=self._num_units,
-                                                         num_heads=self._num_head,
+                                                         num_heads=self._num_heads,
                                                          drop_rate=drop_rate,
                                                          is_training=is_training,
                                                          scope='dec_block_{}'.format(i),
@@ -131,51 +128,50 @@ class Transformer(object):
 
     def _build_graph(self):
 
-        with self.graph.as_default():
-            self.logits = self._transformer_layer(inputs=self.x,
-                                                  decoder_inputs=self.decoder_inputs,
-                                                  drop_rate=self._drop_rate,
-                                                  is_training=self._is_training)
+        self.logits = self._transformer_layer(inputs=self.x,
+                                              decoder_inputs=self.decoder_inputs,
+                                              drop_rate=self._drop_rate,
+                                              is_training=self._is_training)
 
-            self.preds = tf.to_int32(tf.argmax(self.logits, axis=-1))
+        self.preds = tf.to_int32(tf.argmax(self.logits, axis=-1))
 
-            # Accuracy: Remove <PAD> Characters
-            is_target = tf.to_float(tf.not_equal(self.y, 0))
-            total_num = tf.reduce_sum(is_target)
-            correct_num = tf.reduce_sum(tf.to_float(tf.equal(self.preds, self.y)) * is_target)
-            self.acc = total_num / correct_num
-            tf.summary.scalar('accuracy', self.acc)
+        # Accuracy: Remove <PAD> Characters
+        is_target = tf.to_float(tf.not_equal(self.y, 0))
+        total_num = tf.reduce_sum(is_target)
+        correct_num = tf.reduce_sum(tf.to_float(tf.equal(self.preds, self.y)) * is_target)
+        self.acc = total_num / correct_num
+        tf.summary.scalar('accuracy', self.acc)
 
-            # Loss: Remove <PAD> Characters
-            self.y_smoothed = tf.cond(pred=self._is_training,
-                                      true_fn=lambda: label_smoother(tf.one_hot(self.y, depth=len(self._target_int2vocab))),
-                                      false_fn=lambda: tf.one_hot(self.y, depth=len(self._target_int2vocab)))
-            self.loss = tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=self.y_smoothed)
-            self.mean_loss = tf.reduce_sum(self.loss*is_target, axis=-1) / (tf.reduce_sum(is_target))
+        # Loss: Remove <PAD> Characters
+        self.y_smoothed = tf.cond(pred=self._is_training,
+                                  true_fn=lambda: label_smoother(tf.one_hot(self.y, depth=len(self._target_int2vocab))),
+                                  false_fn=lambda: tf.one_hot(self.y, depth=len(self._target_int2vocab)))
+        self.loss = tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=self.y_smoothed)
+        self.mean_loss = tf.reduce_sum(self.loss*is_target, axis=-1) / (tf.reduce_sum(is_target))
 
-            # Training Scheme
-            self.global_step = tf.get_variable(name='global_step',
-                                               shape=[],
-                                               dtype=tf.int32,
-                                               initializer=tf.constant_initializer(value=1, dtype=tf.int32),
-                                               trainable=False)
-            self.optimizer = tf.train.AdamOptimizer(learning_rate=warmup_learning_rate(d_model=self._num_units,
-                                                                                       step_num=self.global_step,
-                                                                                       warmup_step=self._warmup_step),
-                                                    beta1=0.9, beta2=0.98, epsilon=1e-9)
-            self.train_op = self.optimizer.minimize(self.mean_loss, global_step=self.global_step)
+        # Training Scheme
+        self.global_step = tf.get_variable(name='global_step',
+                                           shape=[],
+                                           dtype=tf.int32,
+                                           initializer=tf.constant_initializer(value=1, dtype=tf.int32),
+                                           trainable=False)
+        self.optimizer = tf.train.AdamOptimizer(learning_rate=warmup_learning_rate(d_model=self._num_units,
+                                                                                   step_num=self.global_step,
+                                                                                   warmup_step=self._warmup_step),
+                                                beta1=0.9, beta2=0.98, epsilon=1e-9)
+        self.train_op = self.optimizer.minimize(self.mean_loss, global_step=self.global_step)
 
-            # Summary
-            tf.summary.scalar('mean_loss', self.mean_loss)
-            self.merged = tf.summary.merge_all()
-            self.saver = tf.train.Saver()
+        # Summary
+        tf.summary.scalar('mean_loss', self.mean_loss)
+        self.merged = tf.summary.merge_all()
+        self.saver = tf.train.Saver()
 
     def save(self, sess):
-        self.saver.save(sess, os.path.join(hp.logdir, ''), self.global_step)
+        self.saver.save(sess=sess, save_path=self._save_path , global_step=self.global_step)
         print("Graph is Saved")
     
     def load(self, sess):
-        self.saver.restore(sess, tf.train.latest_checkpoint('/media/disk1/public_milab/translation/transformer/zhkr_bible/log/'))
+        self.saver.restore(sess=sess, save_path=tf.train.latest_checkpoint(checkpoint_dir=self._save_path))
         print("Graph is Loaded from ckpt")
 
     def translate(self, enc_outputs, is_training):

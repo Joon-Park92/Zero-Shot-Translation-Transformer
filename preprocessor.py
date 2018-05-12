@@ -157,13 +157,13 @@ class DataSaver(object):
         text = token + text
         return text
 
-    def get_df(self, resampling_size, dev_from, dev_to, dev_size):
+    def get_df(self, max_len, resampling_size, dev_from, dev_to, dev_size):
         """  Shuffle / Make Token for training( like <2KO> <2EN> <2JA> ...)
 
         Return:
             None, but update two properties: self.train_df / self.dev_df
-            self.train_df = pd.DataFrame object, zero-shot training dataset ( input : <2EN> 안녕하세요 / target: Hello )
-            self.dev_df = pd.DataFrame object, evaluation dataset ( inputs : こんにちは / target: 안녕하세요 )
+            self.train_df = pd.DataFrame object, zero-shot training dataset ( FROM:<2EN> 안녕하세요 / TO:Hello )
+            self.dev_df = pd.DataFrame object, evaluation dataset ( FROM:<2KO> こんにちは / TO:안녕하세요 )
         """
         dev_from = dev_from.upper()
         dev_to = dev_to.upper()
@@ -176,6 +176,15 @@ class DataSaver(object):
         # Resample to reduce data size & accommodate ratio of data
         print("\nRESAMPLING....")
         for key in self.keys:
+
+            # Accommodate data length
+            columns = self.df_dic[key].columns
+            idx_1 = self.df_dic[key][columns[0]].apply(lambda x: len(x.split())) >= 4
+            idx_2 = self.df_dic[key][columns[0]].apply(lambda x: len(x.split())) < max_len
+            idx_3 = self.df_dic[key][columns[1]].apply(lambda x: len(x.split())) >= 4
+            idx_4 = self.df_dic[key][columns[1]].apply(lambda x: len(x.split())) < max_len
+            self.df_dic[key] = self.df_dic[key][idx_1 & idx_2 & idx_3 & idx_4]
+
             if key == dev_key:
                 self.df_dic[key] = self.df_dic[key].sample(n=dev_size)
                 print("{} pair(DEV) is resampled, size ({})".format(key, len(self.df_dic[key])))
@@ -188,7 +197,7 @@ class DataSaver(object):
                     self.df_dic[key] = self.df_dic[key].sample(n=resampling_size)
                 else:
                     print("\nWARNING: Unbalanced language data size")
-                    print("{} pair smaller than resample size ({}, Not changed)".format(key, len(self.df_dic[key])))
+                    print("{} pair smaller than resample size ({}, Not changed)\n".format(key, len(self.df_dic[key])))
                     self.df_dic[key] = self.df_dic[key].sample(frac=1.0)
 
         # Make training data set
@@ -287,7 +296,8 @@ if __name__ == '__main__':
 
     # Pre-process and write(save) data to hard disk
     Saver = DataSaver(df_dic=df_dic, keys=Loader.keys, save_path=hp.save_path)
-    Saver.get_df(resampling_size=hp.resampling_size,
+    Saver.get_df(max_len=hp.max_len,
+                 resampling_size=hp.resampling_size,
                  dev_from=hp.dev_from,
                  dev_to=hp.dev_to,
                  dev_size=hp.dev_size)
