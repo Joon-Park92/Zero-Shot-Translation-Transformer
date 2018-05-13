@@ -9,6 +9,7 @@ from model import Transformer
 from hyperparams import hp
 from utils import *
 
+
 class Trainer(object):
 
     def __init__(self, sess, model, maker, is_training):
@@ -48,7 +49,20 @@ class Trainer(object):
                                                      feed_dict={Maker.controller: True,
                                                                 self.is_training: True})
                     train_writer.add_summary(merged, step)
-                    print('Training... TRAINING LOSS: {} / STEP: {}'.format(loss, step))
+                    print('TRAINING LOSS: {} / STEP: {}'.format(loss, step))
+
+                    # Show examples
+                    input_sentence, target_sentence, output_sentence = sess.run(
+                        [input_tensor, target_tensor, Model.preds],
+                        feed_dict={is_training: True, Maker.controller: True})
+
+                    input_sentence = input_sentence[0]
+                    target_sentence = target_sentence[0]
+                    output_sentence = output_sentence[0]
+
+                    print("INPUT: " + " ".join([Maker.zeroshot_int2voca.get(i) for i in input_sentence]))
+                    print("OUTPUT: " + " ".join([Maker.zeroshot_int2voca.get(i) for i in output_sentence]))
+                    print("TARGET: " + " ".join([Maker.zeroshot_int2voca.get(i) for i in target_sentence]) + '\n')
 
                 else:
                     _, step = sess.run([Model.train_op, Model.global_step],
@@ -60,10 +74,24 @@ class Trainer(object):
                     print("Model is saved - step : {}".format(step))
 
                 if step % hp.evaluate_every_n_step == 1:
-                    step, merged = sess.run([Model.global_step, Model.merged],
-                                            feed_dict={Maker.controller: False,
-                                                       self.is_training: False})
+                    loss, step, merged = sess.run([Model.mean_loss, Model.global_step, Model.merged],
+                                                  feed_dict={Maker.controller: False,
+                                                             self.is_training: False})
                     dev_writer.add_summary(merged, step)
+                    print('DEVELOP LOSS: {} / STEP: {}'.format(loss, step))
+
+                    # Show examples
+                    input_sentence, target_sentence, output_sentence = sess.run(
+                        [input_tensor, target_tensor, Model.preds],
+                        feed_dict={is_training: False, Maker.controller: False})
+
+                    input_sentence = input_sentence[0]
+                    target_sentence = target_sentence[0]
+                    output_sentence = output_sentence[0]
+
+                    print("INPUT: " + " ".join([Maker.zeroshot_int2voca.get(i) for i in input_sentence]))
+                    print("OUTPUT: " + " ".join([Maker.zeroshot_int2voca.get(i) for i in output_sentence]))
+                    print("TARGET: " + " ".join([Maker.zeroshot_int2voca.get(i) for i in target_sentence]) + '\n')
 
             except tf.errors.OutOfRangeError:
                 print("Training is over...!")

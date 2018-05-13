@@ -186,9 +186,9 @@ class DataSaver(object):
             # Remove Too long / Too short
             columns = self.df_dic[key].columns
             idx_1 = self.df_dic[key][columns[0]].apply(lambda x: len(x.split())) >= 4
-            idx_2 = self.df_dic[key][columns[0]].apply(lambda x: len(x.split())) <= (max_len - 2)  # for (<2EN> / </S>
+            idx_2 = self.df_dic[key][columns[0]].apply(lambda x: len(x.split())) <= (max_len - 2)  # for (<2EN> / </S>)
             idx_3 = self.df_dic[key][columns[1]].apply(lambda x: len(x.split())) >= 4
-            idx_4 = self.df_dic[key][columns[1]].apply(lambda x: len(x.split())) <= (max_len - 2)  # for (<2EN> / </S>
+            idx_4 = self.df_dic[key][columns[1]].apply(lambda x: len(x.split())) <= (max_len - 2)  # for (<S> / </S>)
             self.df_dic[key] = self.df_dic[key][idx_1 & idx_2 & idx_3 & idx_4]
 
             # Resample data to make the balnce between languages

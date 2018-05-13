@@ -61,7 +61,7 @@ class ZeroShotVocabMaker(object):
         """
         vocab_dict = self.vocab_dic
         keys = vocab_dict.keys()
-        make_token = lambda token : '<2' + str(token) + '>'
+        make_token = lambda token: '<2' + str(token) + '>'
 
         zeroshot_vocab = list({vocab for key in keys for vocab in vocab_dict[key]})
         zeroshot_vocab += [make_token(key) for key in keys]
@@ -135,7 +135,7 @@ class TFDataSetMaker(object):
         input_dataset = tf.data.TextLineDataset([hp.zeroshot_train_input if mode == 'train' else hp.zeroshot_dev_input])
         output_dataset = tf.data.TextLineDataset(
             [hp.zeroshot_train_output if mode == 'train' else hp.zeroshot_dev_output])
-        output_dataset = output_dataset.map(lambda string: string + ' </S>')
+        output_dataset = output_dataset.map(lambda string: '<S> ' + string + ' </S>')
         dataset = tf.data.Dataset.zip((input_dataset, output_dataset))
         dataset = dataset.map(lambda string_in, string_out: (tf.string_split([string_in]).values[:hp.max_len],
                                                              tf.string_split([string_out]).values[:hp.max_len]))
