@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-#/usr/bin/python2
+# /usr/bin/python2
 
 from __future__ import print_function
 from __future__ import division
@@ -50,8 +50,8 @@ class Transformer(object):
         self._warmup_step = warmup_step
         self._max_len = max_len
 
-        self._input_int2vocab = input_int2vocab
-        self._target_int2vocab = target_int2vocab
+        self.input_int2vocab = input_int2vocab
+        self.target_int2vocab = target_int2vocab
         self._is_training = is_training
         self._build_graph()
 
@@ -74,7 +74,7 @@ class Transformer(object):
             with tf.name_scope('ENCODER'):
                 # Input Embedding + Positional Encoding
                 input_embedding = embedding(ids=inputs,
-                                            vocab_size=len(self._input_int2vocab),
+                                            vocab_size=len(self.input_int2vocab),
                                             embed_dim=self._num_units,
                                             zeropad=True,
                                             pos=True,
@@ -96,7 +96,7 @@ class Transformer(object):
                                                         reuse=False)
             with tf.name_scope('DECODER'):
                 output_embedding = embedding(ids=decoder_inputs,
-                                             vocab_size=len(self._target_int2vocab),
+                                             vocab_size=len(self.target_int2vocab),
                                              embed_dim=self._num_units,
                                              zeropad=True,
                                              pos=True,
@@ -120,7 +120,7 @@ class Transformer(object):
 
             # Final linear projection
             with tf.name_scope('FINAL_DENSE'):
-                logits = tf.layers.dense(inputs=output_embedding, units=len(self._target_int2vocab))
+                logits = tf.layers.dense(inputs=output_embedding, units=len(self.target_int2vocab))
 
         return logits
 
@@ -141,8 +141,9 @@ class Transformer(object):
 
                 # Loss: Remove <PAD> Characters
                 self.y_smoothed = tf.cond(pred=self._is_training,
-                                          true_fn=lambda: label_smoother(tf.one_hot(self.y, depth=len(self._target_int2vocab))),
-                                          false_fn=lambda: tf.one_hot(self.y, depth=len(self._target_int2vocab)))
+                                          true_fn=lambda: label_smoother(
+                                              tf.one_hot(self.y, depth=len(self.target_int2vocab))),
+                                          false_fn=lambda: tf.one_hot(self.y, depth=len(self.target_int2vocab)))
                 self.loss = tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=self.y_smoothed)
                 self.mean_loss = tf.reduce_sum(self.loss * is_target) / (tf.reduce_sum(is_target))
 
@@ -155,7 +156,8 @@ class Transformer(object):
                 self.learning_rate = warmup_learning_rate(d_model=self._num_units,
                                                           step_num=self.global_step,
                                                           warmup_step=self._warmup_step)
-                self.optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate, beta1=0.9, beta2=0.98, epsilon=1e-9)
+                self.optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate, beta1=0.9, beta2=0.98,
+                                                        epsilon=1e-9)
                 self.train_op = self.optimizer.minimize(self.mean_loss, global_step=self.global_step)
 
             with tf.name_scope('Summary'):
@@ -169,7 +171,7 @@ class Transformer(object):
 
     def save(self, sess, save_path):
         self.saver.save(sess=sess, save_path=save_path, global_step=self.global_step)
-    
+
     def load(self, sess, save_path):
         self.saver.restore(sess=sess, save_path=tf.train.latest_checkpoint(checkpoint_dir=save_path))
 
@@ -197,7 +199,7 @@ class Transformer(object):
             next_decoder_inputs = tf.to_int32(tf.argmax(logits, axis=-1))
             # Masking (causality)
             mask = tf.zeros_like(next_decoder_inputs)
-            next_decoder_inputs = tf.concat([next_decoder_inputs[:, :(i+1)], mask[:, (i+1):]], axis=-1)
+            next_decoder_inputs = tf.concat([next_decoder_inputs[:, :(i + 1)], mask[:, (i + 1):]], axis=-1)
             next_decoder_inputs.set_shape([None, max_len])
             return i, enc_in, next_decoder_inputs
 
@@ -241,16 +243,16 @@ class Transformer(object):
                 inputs, targets, predictions = sess.run([inputs, targets, predictions])
 
                 for input_, pred, target in zip(inputs, predictions, targets):
-                    input_string = (" ".join([self._input_int2vocab.get(idx) for idx in input_])).split('<PAD>')[0]
-                    output_string = (" ".join([self._target_int2vocab.get(idx) for idx in pred])).split('</S>')[0]
-                    target_string = (" ".join([self._target_int2vocab.get(idx) for idx in target])).split('</S>')[0]
+                    input_string = (" ".join([self.input_int2vocab.get(idx) for idx in input_])).split('<PAD>')[0]
+                    output_string = (" ".join([self.target_int2vocab.get(idx) for idx in pred])).split('</S>')[0]
+                    target_string = (" ".join([self.target_int2vocab.get(idx) for idx in target])).split('</S>')[0]
 
                     bleu = compute_bleu(reference_corpus=target_string, translation_corpus=target_string)
-                    result_string = "".join(['INPUTS: '+input_string+'\n',
-                                             'OUTPUT: '+output_string+'\n',
-                                             'TARGET: '+target_string+'\n',
-                                             'BLEU  : {}'.format(bleu)+'\n'])
-                    print(result_string+'\n')
+                    result_string = "".join(['INPUTS: ' + input_string + '\n',
+                                             'OUTPUT: ' + output_string + '\n',
+                                             'TARGET: ' + target_string + '\n',
+                                             'BLEU  : {}'.format(bleu) + '\n'])
+                    print(result_string + '\n')
 
                     f_input.write(input_string + '\n')
                     f_output.write(output_string + '\n')

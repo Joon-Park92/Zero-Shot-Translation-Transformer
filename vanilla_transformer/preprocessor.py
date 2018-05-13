@@ -43,8 +43,8 @@ class DownLoader(object):
         languages: list, languages which will be downloaded
     """
 
-    def __init__(self, path, languages):
-        self.path = path
+    def __init__(self, downlaod_path, languages):
+        self.path = downlaod_path
         self.languages = languages
         self.get_url()
 
@@ -78,42 +78,27 @@ class DownLoader(object):
             self._download_inner(url)
 
 
-class DataLoader(object):
-    """
-    Load data from disk to RAM
-    Make Pandas DataFrame dictionary for each language
+class DataExtractor(object):
 
-    Args:
-        path: str, directory that contains data folders (=download path)
-        languages: list, language list that will be used for training
-    """
+    def __init__(self, download_path, extract_path, lang_from, lang_to):
+        self.download_path = download_path
+        self.extract_path = extract_path
+        self.lang_from = lang_from
+        self.lang_to = lang_to
 
-    def __init__(self, path, languages):
-        self.path = path
-        self.languages = languages
-        self._make_keys()
+    def _get_key(self):
+        lang1 = self.lang_from
+        lang2 = self.lang_to
+        lang = [lang1.lower(), lang2.lower()]
+        lang.sort()
+        key = "-".join(lang)
+        return key
 
-    def _make_keys(self):
-        # Make key property of class
-        self.keys = []
-        for lang1, lang2 in itertools.combinations(self.languages, 2):
-            lang = [lang1.lower(), lang2.lower()]
-            lang.sort()
-            id_ = "-".join(lang)
-            self.keys.append(id_)
+    def _get_df(self):
 
-    def get_data(self):
-
-        lang1 = str(key).upper()[:2]
-        lang2 = str(key).upper()[3:]
-
-        parallel_lang = key
-        base_dir = '/media/disk1/public_milab/translation/MultiUN_data'
-        directory = os.path.join(base_dir, 'MultiUN_'+ parallel_lang)
-        extension = '.txt.zip'
-
-        get_file_name = lambda parallel_lang : parallel_lang + extension
-        full_path = os.path.join(directory, get_file_name(key))
+        key = self._get_key()
+        file_name = key + '.txt.zip'
+        full_path = os.path.join(self.download_path, key, file_name)
 
         with zipfile.ZipFile(full_path) as f:
             namelist = f.namelist()
@@ -122,25 +107,37 @@ class DataLoader(object):
         if len(df.columns) >= 3:
             df.drop(df.columns[2], axis=1, inplace=True)
 
+        lang1 = str(key).upper()[:2]
+        lang2 = str(key).upper()[3:]
         df.columns = [lang1, lang2]
 
         return df
 
+    def extract_file(self):
+        save_path = os.path.join(self.extract_path, 'raw')
+        if not os.path.isdir(save_path):
+            os.mkdir(save_path)
 
-class DataSaver(object):
+        df = self._get_df()
+        for lang in df.columns:
+            with codecs.open(os.path.join(save_path, lang), 'w', encoding='utf-8') as f:
+                for line in df[lang]:
+                    f.write(line.decode('utf-8') + '\n')
 
-    def __init__(self, df_dic, keys, save_path):
-        self.df_dic = df_dic
+
+class Preprocesser(object):
+
+    def __init__(self, extract_path, save_path, lang_from, lang_to, dev_size, min_len, max_len):
+
+        self.extract_path = extract_path
+        self.save_path = save_path
+        self.lang_from = str(lang_from)
+        self.lang_to = str(lang_to)
+        self.max_len = max_len
+        self.min_len = min_len
+        self.dev_size = dev_size
         self.train_df = None
         self.dev_df = None
-        self.keys = keys
-        self.save_path = save_path
-
-    @staticmethod
-    def _make_token(lang, text):
-        token = '<2' + lang.upper() + '> '
-        text = token + text
-        return text
 
     @staticmethod
     def _preprocess(text):
@@ -153,81 +150,46 @@ class DataSaver(object):
         for col in df.columns:
             df[col] = df[col].apply(lambda x: self._preprocess(x))
 
-    def get_df(self, max_len, resampling_size, dev_from, dev_to, dev_size):
-        """  Shuffle / Make Token for training( like <2KO> <2EN> <2JA> ...)
+    def preprocess(self):
+        print("PREPROCESS & SPLIT DATA...")
 
-        Return:
-            None, but update two properties: self.train_df / self.dev_df
-            self.train_df = pd.DataFrame object, zero-shot training dataset ( FROM:<2EN> 안녕하세요 / TO:Hello )
-            self.dev_df = pd.DataFrame object, evaluation dataset ( FROM:<2KO> こんにちは / TO:안녕하세요 )
-        """
-        dev_from = dev_from.upper()
-        dev_to = dev_to.upper()
+        save_path = os.path.isdir(os.path.join(self.save_path, 'raw'))
+        file_list = os.listdir(self.extract_path)
 
-        dev_key = [dev_from.lower(), dev_to.lower()]
-        dev_key.sort()
-        dev_key = "-".join(dev_key)
-        assert dev_key in self.keys, "development language pair ( {} ) is not found".format(dev_key)
+        dic = {}
+        for lang in file_list:
+            with codecs.open(os.path.join(self.extract_path, lang), 'r', encoding='utf-8') as f:
+                data = f.read().splitlines()
+            dic[lang] = data
 
-        print("\nPREPROCESSING & RESAMPLING....")
-        for key in self.keys:
+        df = pd.DataFrame({dic})
+        self._df_prerpocess(df=df)
 
-            # Remove redundant punctuations / blanks
-            self._df_prerpocess(df=self.df_dic[key])
+        # filter too short / long
+        columns = df.columns
+        idx_1 = df[columns[0]].apply(lambda x: len(x.split())) >= self.min_len
+        idx_2 = df[columns[0]].apply(lambda x: len(x.split())) <= (self.max_len - 2)  # for (</S>)
+        idx_3 = df[columns[1]].apply(lambda x: len(x.split())) >= self.min_len
+        idx_4 = df[columns[1]].apply(lambda x: len(x.split())) <= (self.max_len - 2)  # for (<S> / </S>)
+        df = df[idx_1 & idx_2 & idx_3 & idx_4]
 
-            # Remove Too long / Too short
-            columns = self.df_dic[key].columns
-            idx_1 = self.df_dic[key][columns[0]].apply(lambda x: len(x.split())) >= 4
-            idx_2 = self.df_dic[key][columns[0]].apply(lambda x: len(x.split())) <= (max_len - 2)  # for (<2EN> / </S>)
-            idx_3 = self.df_dic[key][columns[1]].apply(lambda x: len(x.split())) >= 4
-            idx_4 = self.df_dic[key][columns[1]].apply(lambda x: len(x.split())) <= (max_len - 2)  # for (<S> / </S>)
-            self.df_dic[key] = self.df_dic[key][idx_1 & idx_2 & idx_3 & idx_4]
+        # shuffle
+        df = df.sample(frac=1.0)
+        df.index = range(len(df))
 
-            # Resample data to make the balnce between languages
-            if key == dev_key:
-                self.df_dic[key] = self.df_dic[key].sample(n=dev_size)
-                print("{} pair(DEV) is resampled, size ({})".format(key, len(self.df_dic[key])))
-            else:
-                if len(self.df_dic[key]) >= resampling_size:
-                    print("{} pair is resampled ({}->{}, {})".format(key,
-                                                                     len(df_dic[key]),
-                                                                     resampling_size,
-                                                                     resampling_size / len(df_dic[key])))
-                    self.df_dic[key] = self.df_dic[key].sample(n=resampling_size)
-                else:
-                    print("\nWARNING: Unbalanced language data size")
-                    print("{} pair smaller than resample size ({}, Not changed)\n".format(key, len(self.df_dic[key])))
-                    self.df_dic[key] = self.df_dic[key].sample(frac=1.0)
+        # split train / dev
+        train_df = df.iloc[self.dev_size:]
+        train_df = train_df.drop_duplicates()
+        train_df = train_df[(train_df[self.lang_from] != "") | train_df[self.lang_to] != ""]
+        dev_df = df.iloc[:self.dev_size]
+        dev_df = dev_df.drop_duplicates()
+        dev_df = dev_df[(dev_df[self.lang_from] != "") | dev_df[self.lang_to] != ""]
 
-        # Make training data set
-        print('\nMERGE & MAKE TOKENS...')
-        self.train_df = pd.DataFrame(columns=['FROM', 'TO'])
-        for key in self.keys:
-            if key == dev_key: continue # make training pair data except for development pair
-            for i, col in enumerate(self.df_dic[key].columns):
-                FROM_lang = col
-                TO_lang = self.df_dic[key].columns[(i + 1) % 2]
+        self.train_df = train_df
+        self.dev_df = dev_df
 
-                FROM = self.df_dic[key][FROM_lang]
-                FROM = FROM.apply(lambda text: self._make_token(self.df_dic[key].columns[(i + 1) % 2], text))
-                TO = self.df_dic[key][TO_lang]
+    def write_files(self):
 
-                mono_pair = pd.DataFrame({'FROM': FROM, 'TO': TO})
-                self.train_df = self.train_df.append(mono_pair)
-
-        FROM = self.df_dic[dev_key][dev_from]
-        FROM = FROM.apply(lambda text: self._make_token(dev_to, text))
-        TO = self.df_dic[dev_key][dev_to]
-        TO = TO.apply(self._preprocess)
-        self.dev_df = pd.DataFrame({'FROM': FROM, 'TO': TO})
-
-        self.train_df = self.train_df.drop_duplicates()
-        self.train_df = self.train_df[(self.train_df.FROM != "") | (self.train_df.TO != "")]
-        self.train_df = self.train_df.sample(frac=1.0)
-        self.dev_df = self.dev_df.drop_duplicates()
-        self.dev_df = self.dev_df[(self.dev_df.FROM != "") | (self.dev_df.TO != "")]
-
-    def write_df(self):
         path = self.save_path
         train_path = os.path.join(path, 'train')
         dev_path = os.path.join(path, 'dev')
@@ -238,38 +200,30 @@ class DataSaver(object):
         if not os.path.isdir(train_path):
             os.mkdir(train_path)
         with codecs.open(os.path.join(train_path, 'FROM'), 'w', encoding='utf-8') as f:
-            for line in self.train_df.FROM:
+            for line in self.train_df[self.lang_from]:
                 f.write(line.decode('utf-8') + '\n')
         with codecs.open(os.path.join(train_path, 'TO'), 'w', encoding='utf-8') as f:
-            for line in self.train_df.TO:
+            for line in self.train_df[self.lang_to]:
                 f.write(line.decode('utf-8') + '\n')
 
         print("WRITE DEV DATA...")
         if not os.path.isdir(dev_path):
             os.mkdir(dev_path)
         with codecs.open(os.path.join(dev_path, 'FROM'), 'w', encoding='utf-8') as f:
-            for line in self.dev_df.FROM:
+            for line in self.dev_df[self.lang_from]:
                 f.write(line.decode('utf-8') + '\n')
         with codecs.open(os.path.join(dev_path, 'TO'), 'w', encoding='utf-8') as f:
-            for line in self.dev_df.TO:
+            for line in self.dev_df[self.lang_to]:
                 f.write(line.decode('utf-8') + '\n')
 
-    def write_vocab(self, languages):
+    def write_vocab(self):
         print("MAKE & WRITE VOCAB FILES...")
 
         path = os.path.join(self.save_path, 'vocab')
         if not os.path.exists(path): os.mkdir(path)
 
-        for lang in languages:
-            lang = lang.upper()
-
-            temp_df = pd.DataFrame(columns=[lang])
-            for key in self.keys:
-                for col in self.df_dic[key].columns:
-                    if col == lang:
-                        temp_df = temp_df.append(self.df_dic[key].xs([col], axis=1))
-
-            count = Counter([word for sentence in temp_df[lang] for word in sentence.split()])
+        for lang in [self.lang_from, self.lang_to]:
+            count = Counter([word for sentence in self.train_df[lang] for word in sentence.split()])
             file_name = os.path.join(path, 'vocab.' + lang.lower())
             with codecs.open(file_name, 'w', encoding='utf-8') as f:
                 for word, cnt in count.most_common():
@@ -279,27 +233,32 @@ class DataSaver(object):
 if __name__ == '__main__':
 
     # Download data from OpenSubtitle2018
-    Downloader = DownLoader(path=hp.data_path, languages=hp.languages)
-    Downloader.download()
+    downloader = DownLoader(downlaod_path=hp.download_path, languages=hp.languages)
+    downloader.download()
     print('Download is Done...!')
 
-    # Load law data from hard disk
-    Loader = DataLoader(path=hp.data_path, languages=hp.languages)
-    df_dic = Loader.get_df_dic()
+    # Extract download files
+    extractor = DataExtractor(download_path=hp.download_path,
+                              extract_path=hp.download_path,
+                              lang_from=hp.FROM,
+                              lang_to=hp.TO)
+    extractor.extract_file()
+
+    # Preprocess & Save data
+    preprocessor = Preprocesser(extract_path=hp.save_path,
+                                save_path=hp.save_path,
+                                lang_from=hp.FROM,
+                                lang_to=hp.TO,
+                                dev_size=hp.dev_size,
+                                min_len=hp.min_len,
+                                max_len=hp.max_len)
+    preprocessor.preprocess()
+    preprocessor.write_files()
+    preprocessor.write_vocab()
 
     # Print information about size of data
-    print('SIZE OF LAW DATA: ')
-    for key in Loader.keys:
-        print('\t{} : {}'.format(key, len(df_dic[key])))
-
-    # Pre-process and write(save) data to hard disk
-    Saver = DataSaver(df_dic=df_dic, keys=Loader.keys, save_path=hp.save_path)
-    Saver.get_df(max_len=hp.max_len,
-                 resampling_size=hp.resampling_size,
-                 dev_from=hp.dev_from,
-                 dev_to=hp.dev_to,
-                 dev_size=hp.dev_size)
-    Saver.write_df()
-    Saver.write_vocab(languages=hp.languages)
-    print("PREPROCESSING DONE...")
+    print('SIZE OF DATA: ')
+    print('TRAINING: {} '.format(len(preprocessor.train_df)))
+    print('DEVELOPMENT: {} '.format(len(preprocessor.dev_df)))
+    print("PREPROCESS IS DONE...")
 
