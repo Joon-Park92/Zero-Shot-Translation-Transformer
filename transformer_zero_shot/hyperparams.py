@@ -13,7 +13,7 @@ class Hyperparams:
     # save_path: dir for [training / development / vocabulary data] (preprocessed data will be save at this dir)
     save_path = '/media/disk1/public_milab/translation/zeroshot_exp/exp_zeroshot_3rd/multiun_test'
     # languages: Languages that will be used for training and development (for download)
-    # you can check possible languages in "http://opus.nlpl.eu/OpenSubtitles2018.php"
+    # you can check possible languages in "http://opus.nlpl.eu/OpenSubtitles2018.php" / "http://opus.nlpl.eu/UN.php"
     languages = ['ES', 'EN', 'FR']
     # resampling_size: # Maximum size of each parallel language data
     resampling_size = int(5*1e6)
@@ -24,7 +24,6 @@ class Hyperparams:
     dev_size = int(5*1e5)
     # max_len: Maximum length of tokenized data
     max_len = 100
-
 
     # data_load.py
 
@@ -41,6 +40,7 @@ class Hyperparams:
     num_epochs = 100
     
     # train.py
+
     # train path : path for saving event / graph ...
     train_path = os.path.join(save_path, 'train')
     num_units = 256

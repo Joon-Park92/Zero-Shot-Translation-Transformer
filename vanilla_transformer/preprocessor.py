@@ -34,7 +34,7 @@ class DLProgress(tqdm.tqdm):
 
 class DownLoader(object):
     """
-    Class used for downloading OpenSubtitles2018 dataset
+    Class used for downloading Multi UN dataset
 
     Args:
         path: str, download directory
@@ -47,30 +47,29 @@ class DownLoader(object):
         self.get_url()
 
     def get_url(self):
-        base = 'http://opus.nlpl.eu/download/OpenSubtitles2018/'
+
+        base_url = 'http://opus.nlpl.eu/download.php?f=MultiUN/'
+        end_url = '.txt.zip'
+        mk_url = lambda langs: base_url + langs + end_url
+
         self.url_list = []
         for lang1, lang2 in itertools.combinations(self.languages, 2):
             lang = [lang1.lower(), lang2.lower()]
             lang.sort()
             id_ = "-".join(lang)
-
-            file_1 = 'c.clean.' + lang[0] + '.gz'
-            file_2 = 'c.clean.' + lang[1] + '.gz'
-            url_1 = base + id_ + '/' + file_1
-            url_2 = base + id_ + '/' + file_2
-            self.url_list.append(url_1)
-            self.url_list.append(url_2)
+            self.url_list.append(mk_url(id_))
 
     def _download_inner(self, url):
-        file_name = url[url.rfind('/') + 1:]
 
-        if not isdir(os.path.join(self.path, url[url.find('2018') + 5:url.rfind('/')])):
-            os.mkdir(os.path.join(self.path, url[url.find('2018') + 5:url.rfind('/')]))
+        sub_dir = url[url.find('UN') + 3: -8]
+        file_name = sub_dir + '.txt.zip'
 
-        if not isfile(os.path.join(self.path, url[url.find('2018') + 5:url.rfind('/')], file_name)):
+        if not isdir(os.path.join(self.path, sub_dir)):
+            os.mkdir(os.path.join(self.path, sub_dir))
+
+        if not isfile(os.path.join(self.path, sub_dir, file_name)):
             with DLProgress(unit='B', unit_scale=True, miniters=1, desc=file_name) as pbar:
-                urlretrieve(url, os.path.join(self.path, url[url.find('2018') + 5:url.rfind('/')], file_name),
-                            pbar.hook)
+                urlretrieve(url, os.path.join(self.path, sub_dir, file_name), pbar.hook)
 
     def download(self):
         for url in self.url_list:
@@ -101,38 +100,29 @@ class DataLoader(object):
             id_ = "-".join(lang)
             self.keys.append(id_)
 
-    def _dir_generator(self):
-        for lang1, lang2 in itertools.combinations(self.languages, 2):
-            lang = [lang1.lower(), lang2.lower()]
-            lang.sort()
-            id_ = "-".join(lang)
-            yield id_
+    def get_data(self):
 
-    @staticmethod
-    def _read_table(path):
-        with gzip.open(path) as f:
-            data = f.read().split('\n')
+        lang1 = str(key).upper()[:2]
+        lang2 = str(key).upper()[3:]
 
-        ref_idx = path.find('.gz')
-        lang = path[ref_idx - 2: ref_idx].upper()
+        parallel_lang = key
+        base_dir = '/media/disk1/public_milab/translation/MultiUN_data'
+        directory = os.path.join(base_dir, 'MultiUN_'+ parallel_lang)
+        extension = '.txt.zip'
 
-        return lang, data
+        get_file_name = lambda parallel_lang : parallel_lang + extension
+        full_path = os.path.join(directory, get_file_name(key))
 
-    def get_df_dic(self):
-        df_dic = {}
-        for folder in tqdm.tqdm(self._dir_generator(),
-                                desc='Load data : ',
-                                total=int((len(self.languages) * (len(self.languages) - 1)) / 2)):
-            assert os.listdir(os.path.join(self.path, folder))
-            temp = {}
-            for file_ in os.listdir(os.path.join(self.path, folder)):
-                abs_path = os.path.join(self.path, folder, file_)
-                key, data = self._read_table(path=abs_path)
-                temp[key] = data
+        with zipfile.ZipFile(full_path) as f:
+            namelist = f.namelist()
+            df = pd.DataFrame({name : f.read(namelist[i]).split('\n') for i, name in enumerate(namelist)})
 
-            df_dic[folder] = pd.DataFrame(temp)
+        if len(df.columns) >= 3:
+            df.drop(df.columns[2], axis=1, inplace=True)
 
-        return df_dic
+        df.columns = [lang1, lang2]
+
+        return df
 
 
 class DataSaver(object):

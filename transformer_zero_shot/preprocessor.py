@@ -121,7 +121,9 @@ class MultiUNDataLoader(object):
 
     def get_df_dic(self):
         df_dic = {}
-        for key in self.keys:
+        for key in tqdm.tqdm(self.keys,
+                             desc='Load data : ',
+                             total=int((len(self.languages) * (len(self.languages) - 1)) / 2)):
             df_dic[key] = self._get_df(key)
 
         return df_dic
@@ -418,4 +420,4 @@ if __name__ == '__main__':
         downloader = MultiUNDownLoader(path=hp.data_path, languages=hp.languages)
         loader = MultiUNDataLoader(path=hp.data_path, languages=hp.languages)
 
-    main(downloader=downloader, loader=loader)
+    main(downloader=downloader, dataloader=loader)
