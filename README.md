@@ -8,7 +8,7 @@
 ## Requirements
   
 ## File description
-  * `preprocessor.py` download data ( you can use 
+  * `preprocessor.py` download & preprocess data ( you can use OpenSubtitle2018 / MultiUN dataset )
   * `model.py` define transformer model
   * `data_loader.py` define class for dataload
   * `model_layer.py` has all layers need for transformer
