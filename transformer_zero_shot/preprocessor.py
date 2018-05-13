@@ -9,6 +9,7 @@ import regex as re
 import codecs
 import os
 import gzip
+import zipfile
 
 from collections import Counter
 import pandas as pd
@@ -32,7 +33,101 @@ class DLProgress(tqdm.tqdm):
         self.last_block = block_num
 
 
-class DownLoader(object):
+class MultiUNDownLoader(object):
+    """
+    Class used for downloading Multi UN dataset
+
+    Args:
+        path: str, download directory
+        languages: list, languages which will be downloaded
+    """
+
+    def __init__(self, path, languages):
+        self.path = path
+        self.languages = languages
+        self.get_url()
+
+    def get_url(self):
+
+        base_url = 'http://opus.nlpl.eu/download.php?f=MultiUN/'
+        end_url = '.txt.zip'
+        mk_url = lambda langs: base_url + langs + end_url
+
+        self.url_list = []
+        for lang1, lang2 in itertools.combinations(self.languages, 2):
+            lang = [lang1.lower(), lang2.lower()]
+            lang.sort()
+            id_ = "-".join(lang)
+            self.url_list.append(mk_url(id_))
+
+    def _download_inner(self, url):
+
+        sub_dir = url[url.find('UN') + 3: -8]
+        file_name = sub_dir + '.txt.zip'
+
+        if not isdir(os.path.join(self.path, sub_dir)):
+            os.mkdir(os.path.join(self.path, sub_dir))
+
+        if not isfile(os.path.join(self.path, sub_dir, file_name)):
+            with DLProgress(unit='B', unit_scale=True, miniters=1, desc=file_name) as pbar:
+                urlretrieve(url, os.path.join(self.path, sub_dir, file_name), pbar.hook)
+
+    def download(self):
+        for url in self.url_list:
+            self._download_inner(url)
+
+
+class MultiUNDataLoader(object):
+    """
+    Load data from disk to RAM
+    Make Pandas DataFrame dictionary for each language
+
+    Args:
+        path: str, directory that contains data folders (=download path)
+        languages: list, language list that will be used for training
+    """
+
+    def __init__(self, path, languages):
+        self.path = path
+        self.languages = languages
+        self._make_keys()
+
+    def _make_keys(self):
+        # Make key property of class
+        self.keys = []
+        for lang1, lang2 in itertools.combinations(self.languages, 2):
+            lang = [lang1.lower(), lang2.lower()]
+            lang.sort()
+            id_ = "-".join(lang)
+            self.keys.append(id_)
+
+    def _get_df(self, key):
+
+        lang1 = str(key).upper()[:2]
+        lang2 = str(key).upper()[3:]
+        file_name = key + '.txt.zip'
+        full_path = os.path.join(self.path, key, file_name)
+
+        with zipfile.ZipFile(full_path) as f:
+            namelist = f.namelist()
+            df = pd.DataFrame({name: f.read(namelist[i]).split('\n') for i, name in enumerate(namelist)})
+
+        if len(df.columns) >= 3:
+            df.drop(df.columns[2], axis=1, inplace=True)
+
+        df.columns = [lang1, lang2]
+
+        return df
+
+    def get_df_dic(self):
+        df_dic = {}
+        for key in self.keys:
+            df_dic[key] = self._get_df(key)
+
+        return df_dic
+
+
+class OpenSubDownLoader(object):
     """
     Class used for downloading OpenSubtitles2018 dataset
 
@@ -77,7 +172,7 @@ class DownLoader(object):
             self._download_inner(url)
 
 
-class DataLoader(object):
+class OpenSubDataLoader(object):
     """
     Load data from disk to RAM
     Make Pandas DataFrame dictionary for each language
@@ -191,16 +286,16 @@ class DataSaver(object):
             idx_4 = self.df_dic[key][columns[1]].apply(lambda x: len(x.split())) <= (max_len - 2)  # for (<S> / </S>)
             self.df_dic[key] = self.df_dic[key][idx_1 & idx_2 & idx_3 & idx_4]
 
-            # Resample data to make the balnce between languages
+            # Resample data to make the balance between languages
             if key == dev_key:
                 self.df_dic[key] = self.df_dic[key].sample(n=dev_size)
                 print("{} pair(DEV) is resampled, size ({})".format(key, len(self.df_dic[key])))
             else:
                 if len(self.df_dic[key]) >= resampling_size:
                     print("{} pair is resampled ({}->{}, {})".format(key,
-                                                                     len(df_dic[key]),
+                                                                     len(self.df_dic[key]),
                                                                      resampling_size,
-                                                                     resampling_size / len(df_dic[key])))
+                                                                     resampling_size / len(self.df_dic[key])))
                     self.df_dic[key] = self.df_dic[key].sample(n=resampling_size)
                 else:
                     print("\nWARNING: Unbalanced language data size")
@@ -284,30 +379,43 @@ class DataSaver(object):
                     f.write('\t'.join([word.decode('utf-8'), str(cnt)]) + '\n')
 
 
-if __name__ == '__main__':
+def main(downloader, dataloader):
 
-    # Download data from OpenSubtitle2018
-    Downloader = DownLoader(path=hp.data_path, languages=hp.languages)
-    Downloader.download()
+    # Download data from OpenSubtitle2018 (or MultiUN)
+    downloader.download()
     print('Download is Done...!')
 
     # Load law data from hard disk
-    Loader = DataLoader(path=hp.data_path, languages=hp.languages)
-    df_dic = Loader.get_df_dic()
+    df_dic = dataloader.get_df_dic()
 
     # Print information about size of data
     print('SIZE OF LAW DATA: ')
-    for key in Loader.keys:
+    for key in dataloader.keys:
         print('\t{} : {}'.format(key, len(df_dic[key])))
 
     # Pre-process and write(save) data to hard disk
-    Saver = DataSaver(df_dic=df_dic, keys=Loader.keys, save_path=hp.save_path)
-    Saver.get_df(max_len=hp.max_len,
+    saver = DataSaver(df_dic=df_dic, keys=loader.keys, save_path=hp.save_path)
+    saver.get_df(max_len=hp.max_len,
                  resampling_size=hp.resampling_size,
                  dev_from=hp.dev_from,
                  dev_to=hp.dev_to,
                  dev_size=hp.dev_size)
-    Saver.write_df()
-    Saver.write_vocab(languages=hp.languages)
+
+    saver.write_df()
+    saver.write_vocab(languages=hp.languages)
     print("PREPROCESSING DONE...")
 
+
+if __name__ == '__main__':
+
+    assert hp.DATASET == 'OpenSubTitle2018' or 'MultiUN', 'invalid dataset'
+
+    if hp.DATASET == 'OpenSubTitle2018':
+        downloader = OpenSubDownLoader(path=hp.data_path, languages=hp.languages)
+        loader = OpenSubDownLoader(path=hp.data_path, languages=hp.languages)
+
+    elif hp.DATASET == 'MultiUN':
+        downloader = MultiUNDownLoader(path=hp.data_path, languages=hp.languages)
+        loader = MultiUNDataLoader(path=hp.data_path, languages=hp.languages)
+
+    main(downloader=downloader, loader=loader)
