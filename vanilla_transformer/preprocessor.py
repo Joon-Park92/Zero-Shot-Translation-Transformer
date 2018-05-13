@@ -9,6 +9,7 @@ import regex as re
 import codecs
 import os
 import gzip
+import zipfile
 
 from collections import Counter
 import pandas as pd
@@ -16,11 +17,12 @@ import itertools
 import tqdm
 
 from os.path import isfile, isdir
+from hyperparams import hp
+
 #Python2
 from urllib import urlretrieve
 # Python 3
 # from urllib.request import urlretrieve
-from hyperparams import hp
 
 
 class DLProgress(tqdm.tqdm):
@@ -115,7 +117,7 @@ class DataLoader(object):
 
         with zipfile.ZipFile(full_path) as f:
             namelist = f.namelist()
-            df = pd.DataFrame({name : f.read(namelist[i]).split('\n') for i, name in enumerate(namelist)})
+            df = pd.DataFrame({name: f.read(namelist[i]).split('\n') for i, name in enumerate(namelist)})
 
         if len(df.columns) >= 3:
             df.drop(df.columns[2], axis=1, inplace=True)
