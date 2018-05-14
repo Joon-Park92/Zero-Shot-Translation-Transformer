@@ -34,13 +34,14 @@ def compute_bleu(reference_corpus, translation_corpus):
 
 
 def get_hp():
-    hparams = "{}{}_batch_{}_mincnt_{}_units_{}_head_{}_block_{}".format(hp.dev_from,
-                                                                         hp.dev_to,
-                                                                         hp.batch_size,
-                                                                         hp.minimum_count,
-                                                                         hp.num_units,
-                                                                         hp.num_heads,
-                                                                         hp.num_blocks)
+    hparams = "{}{}_batch_{}_mincnt_{}_maxlen_{}_units_{}_head_{}_block_{}".format(hp.FROM,
+                                                                                   hp.TO,
+                                                                                   hp.batch_size,
+                                                                                   hp.minimum_count,
+                                                                                   hp.max_len,
+                                                                                   hp.num_units,
+                                                                                   hp.num_heads,
+                                                                                   hp.num_blocks)
     return hparams
 
 
