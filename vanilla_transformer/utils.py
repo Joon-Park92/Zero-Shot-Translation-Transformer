@@ -34,8 +34,8 @@ def compute_bleu(reference_corpus, translation_corpus):
 
 
 def get_hp():
-    hparams = "{}{}_batch_{}_mincnt_{}_units_{}_head_{}_block_{}".format(hp.dev_from,
-                                                                         hp.dev_to,
+    hparams = "{}{}_batch_{}_mincnt_{}_units_{}_head_{}_block_{}".format(hp.FROM,
+                                                                         hp.TO,
                                                                          hp.batch_size,
                                                                          hp.minimum_count,
                                                                          hp.num_units,

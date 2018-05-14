@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-#/usr/bin/python2
+# /usr/bin/python2
 
 import os
 
-class Hyperparams:
 
+class Hyperparams:
     # preprocessor.py - DownLoad & Preprocess & Save data to disk
 
     # data_path: dir for law data (download dir)
@@ -17,18 +17,18 @@ class Hyperparams:
     # dev_size: Define Development data size
     # max_len: Maximum length of tokenized data
 
-    download_path = '/media/disk1/public_milab/translation/DATA/MultiUN_data'
-    extract_path = download_path
-
     exp_path = '/media/disk1/public_milab/translation/zeroshot_exp/exp_zeroshot_4rd'
+
+    download_path = '/media/disk1/public_milab/translation/DATA/MultiUN_data'
+    extract_path = os.path.join(exp_path, 'raw')
     save_path = os.path.join(exp_path, 'preprocess')
 
-    languages = ['KO', 'JA']  # use capital abbreviation
-    FROM = 'JA'
-    TO = 'KO'
+    languages = ['FR', 'EN']  # use capital abbreviation
+    FROM = 'FR'
+    TO = 'EN'
     dev_size = int(1e4)
-    max_len = 100
-    min_len = 20
+    max_len = 35
+    min_len = 4
 
     # data_load.py
 
@@ -45,7 +45,7 @@ class Hyperparams:
     minimum_count = 300
     batch_size = 256
     num_epochs = 100
-    
+
     # train.py
     # train path : path for saving event / graph ...
     train_path = os.path.join(exp_path, 'train')
@@ -58,7 +58,6 @@ class Hyperparams:
     summary_every_n_step = 1000
     save_every_n_step = 2000
     evaluate_every_n_step = 3000
-
 
 
 hp = Hyperparams()

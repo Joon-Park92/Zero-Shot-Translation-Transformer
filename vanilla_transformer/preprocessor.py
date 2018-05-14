@@ -114,15 +114,19 @@ class DataExtractor(object):
         return df
 
     def extract_file(self):
-        save_path = os.path.join(self.extract_path, 'raw')
+        save_path = self.extract_path
         if not os.path.isdir(save_path):
-            os.mkdir(save_path)
+            os.makedirs(save_path)
 
-        df = self._get_df()
-        for lang in df.columns:
-            with codecs.open(os.path.join(save_path, lang), 'w', encoding='utf-8') as f:
-                for line in df[lang]:
-                    f.write(line.decode('utf-8') + '\n')
+        if not (os.path.isfile(os.path.join(save_path, self.lang_from)) &
+                os.path.isfile(os.path.join(save_path, self.lang_to))):
+            df = self._get_df()
+            for lang in df.columns:
+                with codecs.open(os.path.join(save_path, lang), 'w', encoding='utf-8') as f:
+                    for line in df[lang]:
+                        f.write(line.decode('utf-8') + '\n')
+
+        print('EXTRACTED...!')
 
 
 class Preprocesser(object):
@@ -153,8 +157,11 @@ class Preprocesser(object):
     def preprocess(self):
         print("PREPROCESS & SPLIT DATA...")
 
-        save_path = os.path.isdir(os.path.join(self.save_path, 'raw'))
+        save_path = os.path.join(self.save_path)
         file_list = os.listdir(self.extract_path)
+
+        if not os.path.isdir(save_path):
+            os.makedirs(save_path)
 
         dic = {}
         for lang in file_list:
@@ -162,7 +169,7 @@ class Preprocesser(object):
                 data = f.read().splitlines()
             dic[lang] = data
 
-        df = pd.DataFrame({dic})
+        df = pd.DataFrame(dic)
         self._df_prerpocess(df=df)
 
         # filter too short / long
@@ -180,10 +187,10 @@ class Preprocesser(object):
         # split train / dev
         train_df = df.iloc[self.dev_size:]
         train_df = train_df.drop_duplicates()
-        train_df = train_df[(train_df[self.lang_from] != "") | train_df[self.lang_to] != ""]
+        train_df = train_df[(train_df[self.lang_from] != "") & (train_df[self.lang_to] != "")]
         dev_df = df.iloc[:self.dev_size]
         dev_df = dev_df.drop_duplicates()
-        dev_df = dev_df[(dev_df[self.lang_from] != "") | dev_df[self.lang_to] != ""]
+        dev_df = dev_df[(dev_df[self.lang_from] != "") & (dev_df[self.lang_to] != "")]
 
         self.train_df = train_df
         self.dev_df = dev_df
@@ -201,20 +208,20 @@ class Preprocesser(object):
             os.mkdir(train_path)
         with codecs.open(os.path.join(train_path, 'FROM'), 'w', encoding='utf-8') as f:
             for line in self.train_df[self.lang_from]:
-                f.write(line.decode('utf-8') + '\n')
+                f.write(line + '\n')
         with codecs.open(os.path.join(train_path, 'TO'), 'w', encoding='utf-8') as f:
             for line in self.train_df[self.lang_to]:
-                f.write(line.decode('utf-8') + '\n')
+                f.write(line + '\n')
 
         print("WRITE DEV DATA...")
         if not os.path.isdir(dev_path):
             os.mkdir(dev_path)
         with codecs.open(os.path.join(dev_path, 'FROM'), 'w', encoding='utf-8') as f:
             for line in self.dev_df[self.lang_from]:
-                f.write(line.decode('utf-8') + '\n')
+                f.write(line + '\n')
         with codecs.open(os.path.join(dev_path, 'TO'), 'w', encoding='utf-8') as f:
             for line in self.dev_df[self.lang_to]:
-                f.write(line.decode('utf-8') + '\n')
+                f.write(line + '\n')
 
     def write_vocab(self):
         print("MAKE & WRITE VOCAB FILES...")
@@ -227,7 +234,7 @@ class Preprocesser(object):
             file_name = os.path.join(path, 'vocab.' + lang.lower())
             with codecs.open(file_name, 'w', encoding='utf-8') as f:
                 for word, cnt in count.most_common():
-                    f.write('\t'.join([word.decode('utf-8'), str(cnt)]) + '\n')
+                    f.write('\t'.join([word, str(cnt)]) + '\n')
 
 
 if __name__ == '__main__':
@@ -239,13 +246,13 @@ if __name__ == '__main__':
 
     # Extract download files
     extractor = DataExtractor(download_path=hp.download_path,
-                              extract_path=hp.download_path,
+                              extract_path=hp.extract_path,
                               lang_from=hp.FROM,
                               lang_to=hp.TO)
     extractor.extract_file()
 
     # Preprocess & Save data
-    preprocessor = Preprocesser(extract_path=hp.save_path,
+    preprocessor = Preprocesser(extract_path=hp.extract_path,
                                 save_path=hp.save_path,
                                 lang_from=hp.FROM,
                                 lang_to=hp.TO,

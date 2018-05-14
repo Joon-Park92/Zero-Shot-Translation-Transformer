@@ -51,7 +51,7 @@ class VocabMaker(object):
             full_path = os.path.join(vocab_path, file_name)
             with codecs.open(full_path, 'r', 'utf-8') as f:
                 data = f.read().splitlines()
-                vocab_ = [line.split('\t')[0] for line in data if int(line.split('\t')[1])>=self.minimum_count]
+                vocab_ = [line.split('\t')[0] for line in data if int(line.split('\t')[1]) >= self.minimum_count]
                 vocab_dict[lang] = vocab_
 
         self.vocab_dic = vocab_dict
@@ -66,21 +66,24 @@ class VocabMaker(object):
                 # to make <PAD> to be 0 / <UNK> 1 /
                 voca.reverse()
 
-                self.from_voca2int = {i : word for i, word in enumerate(voca)}
-                self.from_int2voca = {word: i for i, word in enumerate(voca)}
+                self.from_voca2int = {word: i for i, word in enumerate(voca)}
+                self.from_int2voca = {i : word for i, word in enumerate(voca)}
 
             else:
                 voca = self.vocab_dic[key]
                 voca += ['</S>', '<S>', '<UNK>', '<PAD>']
                 voca.reverse()
 
-                self.to_voca2int = {i: word for i, word in enumerate(voca)}
-                self.to_int2voca = {word: i for i, word in enumerate(voca)}
+                self.to_voca2int = {word: i for i, word in enumerate(voca)}
+                self.to_int2voca = {i: word for i, word in enumerate(voca)}
 
     def print_vocab_info(self):
         print('\nThe number of words with a minimum count greater than {}...\n'.format(self.minimum_count))
         for lang in self.vocab_dic.keys():
-            print("{} : {}".format(lang, self.vocab_dic[lang]))
+            print("{} : {}".format(lang, len(self.vocab_dic[lang])))
+
+        print("TOTAL VOCA SIZE : {}".format(len(self.vocab_dic[self.lang_to])
+                                            + len(self.vocab_dic[self.lang_to])))
 
 
 class TFDataSetMaker(object):
@@ -121,7 +124,7 @@ class TFDataSetMaker(object):
         elif mode == 'train':
             dataset = dataset.repeat(hp.num_epochs)
 
-        iterator = dataset.make_one_shot_iterator()
+        iterator = dataset.make_initializable_iterator()
 
         return iterator
 
@@ -152,3 +155,8 @@ class TFDataSetMaker(object):
                         true_fn=lambda: self.train_iterator.get_next(),
                         false_fn=lambda: self.dev_iterator.get_next()))
 
+    def get_init_ops(self):
+        return [tf.global_variables_initializer(),
+                self.train_iterator.initializer,
+                self.dev_iterator.initializer,
+                tf.tables_initializer()]

@@ -33,8 +33,6 @@ class Trainer(object):
         train_writer = tf.summary.FileWriter(logdir=train_path, graph=sess.graph)
         dev_writer = tf.summary.FileWriter(logdir=dev_path)
 
-        sess.run([tf.global_variables_initializer(), tf.tables_initializer()])
-
         if tf.train.latest_checkpoint(train_path) is not None:
             Model.load(sess=sess, save_path=train_path)
 
@@ -114,7 +112,7 @@ if __name__ == '__main__':
                                        lang_to=hp.TO)
 
                 datasetmaker = TFDataSetMaker(from_voca2int=vocamaker.from_voca2int,
-                                              from_int2voca=vocamaker.from_voca2int,
+                                              from_int2voca=vocamaker.from_int2voca,
                                               to_voca2int=vocamaker.to_voca2int,
                                               to_int2voca=vocamaker.to_int2voca,
                                               is_training=is_training)
@@ -134,5 +132,7 @@ if __name__ == '__main__':
                                 max_len=hp.max_len)
 
             with tf.name_scope('Trainer_scope'):
+                print("TRAINING START....")
+                sess.run(datasetmaker.get_init_ops())
                 trainer = Trainer(sess=sess, model=Model, is_training=is_training)
                 trainer.train()
