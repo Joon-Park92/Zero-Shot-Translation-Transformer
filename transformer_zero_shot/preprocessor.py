@@ -208,7 +208,7 @@ class OpenSubDataLoader(object):
     @staticmethod
     def _read_table(path):
         with gzip.open(path) as f:
-            data = f.read().split('\n')
+            data = f.read().split('\n')  # byte
 
         ref_idx = path.find('.gz')
         lang = path[ref_idx - 2: ref_idx].upper()
@@ -258,7 +258,7 @@ class DataSaver(object):
         for col in df.columns:
             df[col] = df[col].apply(lambda x: self._preprocess(x))
 
-    def get_df(self, max_len, resampling_size, dev_from, dev_to, dev_size):
+    def get_df(self, max_len, min_len, resampling_size, dev_from, dev_to, dev_size):
         """  Shuffle / Make Token for training( like <2KO> <2EN> <2JA> ...)
 
         Return:
@@ -282,9 +282,9 @@ class DataSaver(object):
 
             # Remove Too long / Too short
             columns = self.df_dic[key].columns
-            idx_1 = self.df_dic[key][columns[0]].apply(lambda x: len(x.split())) >= 4
+            idx_1 = self.df_dic[key][columns[0]].apply(lambda x: len(x.split())) >= min_len
             idx_2 = self.df_dic[key][columns[0]].apply(lambda x: len(x.split())) <= (max_len - 2)  # for (<2EN> / </S>)
-            idx_3 = self.df_dic[key][columns[1]].apply(lambda x: len(x.split())) >= 4
+            idx_3 = self.df_dic[key][columns[1]].apply(lambda x: len(x.split())) >= min_len
             idx_4 = self.df_dic[key][columns[1]].apply(lambda x: len(x.split())) <= (max_len - 2)  # for (<S> / </S>)
             self.df_dic[key] = self.df_dic[key][idx_1 & idx_2 & idx_3 & idx_4]
 
@@ -327,10 +327,10 @@ class DataSaver(object):
         self.dev_df = pd.DataFrame({'FROM': FROM, 'TO': TO})
 
         self.train_df = self.train_df.drop_duplicates()
-        self.train_df = self.train_df[(self.train_df.FROM != "") | (self.train_df.TO != "")]
+        self.train_df = self.train_df[(self.train_df.FROM != "") & (self.train_df.TO != "")]
         self.train_df = self.train_df.sample(frac=1.0)
         self.dev_df = self.dev_df.drop_duplicates()
-        self.dev_df = self.dev_df[(self.dev_df.FROM != "") | (self.dev_df.TO != "")]
+        self.dev_df = self.dev_df[(self.dev_df.FROM != "") & (self.dev_df.TO != "")]
 
     def write_df(self):
         path = self.save_path
@@ -343,7 +343,7 @@ class DataSaver(object):
         if not os.path.isdir(train_path):
             os.mkdir(train_path)
         with codecs.open(os.path.join(train_path, 'FROM'), 'w', encoding='utf-8') as f:
-            for line in self.train_df.FROM:
+            for line in self.train_df.FROM:  # byte to unicode (decode by 'utf-8'format)
                 f.write(line.decode('utf-8') + '\n')
         with codecs.open(os.path.join(train_path, 'TO'), 'w', encoding='utf-8') as f:
             for line in self.train_df.TO:
@@ -398,6 +398,7 @@ def main(downloader, dataloader):
     # Pre-process and write(save) data to hard disk
     saver = DataSaver(df_dic=df_dic, keys=loader.keys, save_path=hp.save_path)
     saver.get_df(max_len=hp.max_len,
+                 min_len=hp.min_len,
                  resampling_size=hp.resampling_size,
                  dev_from=hp.dev_from,
                  dev_to=hp.dev_to,

@@ -48,7 +48,7 @@ class Trainer(object):
 
                     # Show examples
                     input_sentence, target_sentence, output_sentence, _ = sess.run(
-                        [input_tensor, target_tensor, Model.preds, Model.train_op], feed_dict={is_training: True})
+                        [Model.x, Model.y, Model.preds, Model.train_op], feed_dict={self.is_training: True})
 
                     input_sentence = input_sentence[0]
                     target_sentence = target_sentence[0]
@@ -75,9 +75,8 @@ class Trainer(object):
                     print('DEVELOP LOSS: {} / STEP: {}'.format(loss, step))
 
                     # Show examples
-                    input_sentence, target_sentence, output_sentence = sess.run(
-                        [input_tensor, target_tensor, Model.preds],
-                        feed_dict={is_training: False})
+                    input_sentence, target_sentence, output_sentence = sess.run([Model.x, Model.y, Model.preds],
+                                                                                feed_dict={self.is_training: False})
 
                     input_sentence = input_sentence[0]
                     target_sentence = target_sentence[0]

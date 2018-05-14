@@ -156,9 +156,13 @@ class Transformer(object):
                 self.learning_rate = warmup_learning_rate(d_model=self._num_units,
                                                           step_num=self.global_step,
                                                           warmup_step=self._warmup_step)
-                self.optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate, beta1=0.9, beta2=0.98,
-                                                        epsilon=1e-9)
-                self.train_op = self.optimizer.minimize(self.mean_loss, global_step=self.global_step)
+                # for batch normalization update
+                self.update_op = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+                self.optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate,
+                                                        beta1=0.9, beta2=0.98, epsilon=1e-9)
+
+                with tf.control_dependencies(self.update_op):
+                    self.train_op = self.optimizer.minimize(self.mean_loss, global_step=self.global_step)
 
             with tf.name_scope('Summary'):
                 tf.summary.scalar('accuracy', self.acc)

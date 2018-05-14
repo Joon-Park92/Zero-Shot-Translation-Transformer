@@ -23,7 +23,8 @@ class Hyperparams:
     # dev_size: Define Development data size
     dev_size = int(5*1e5)
     # max_len: Maximum length of tokenized data
-    max_len = 100
+    max_len = 35
+    min_len = 10
 
     # data_load.py
 

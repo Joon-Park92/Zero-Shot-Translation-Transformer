@@ -19,6 +19,7 @@ class Trainer(object):
         self.is_training = is_training
 
     def train(self):
+        print("Training Starts....")
 
         sess = self.sess
         Model = self.model
@@ -60,9 +61,11 @@ class Trainer(object):
                     target_sentence = target_sentence[0]
                     output_sentence = output_sentence[0]
 
-                    print("INPUT: " + " ".join([Maker.zeroshot_int2voca.get(i) for i in input_sentence]))
+                    print("INPUT: " +
+                          " ".join([Maker.zeroshot_int2voca.get(i) for i in input_sentence]).split('<PAD>')[0])
                     print("OUTPUT: " + " ".join([Maker.zeroshot_int2voca.get(i) for i in output_sentence]))
-                    print("TARGET: " + " ".join([Maker.zeroshot_int2voca.get(i) for i in target_sentence]) + '\n')
+                    print("TARGET: " +
+                          " ".join([Maker.zeroshot_int2voca.get(i) for i in target_sentence]).split('<PAD>')[0] + '\n')
 
                 else:
                     _, step = sess.run([Model.train_op, Model.global_step],
@@ -89,9 +92,11 @@ class Trainer(object):
                     target_sentence = target_sentence[0]
                     output_sentence = output_sentence[0]
 
-                    print("INPUT: " + " ".join([Maker.zeroshot_int2voca.get(i) for i in input_sentence]))
+                    print("INPUT: " +
+                          " ".join([Maker.zeroshot_int2voca.get(i) for i in input_sentence]).split('<PAD>')[0])
                     print("OUTPUT: " + " ".join([Maker.zeroshot_int2voca.get(i) for i in output_sentence]))
-                    print("TARGET: " + " ".join([Maker.zeroshot_int2voca.get(i) for i in target_sentence]) + '\n')
+                    print("TARGET: " +
+                          " ".join([Maker.zeroshot_int2voca.get(i) for i in target_sentence]).split('<PAD>')[0] + '\n')
 
             except tf.errors.OutOfRangeError:
                 print("Training is over...!")
