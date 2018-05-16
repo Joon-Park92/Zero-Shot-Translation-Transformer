@@ -107,7 +107,7 @@ class TFDataSetMaker(object):
 
         input_dataset = tf.data.TextLineDataset([hp.train_input if mode == 'train' else hp.dev_input])
         output_dataset = tf.data.TextLineDataset([hp.train_output if mode == 'train' else hp.dev_output])
-        output_dataset = output_dataset.map(lambda string: '<S> ' + string + ' </S>')
+        output_dataset = output_dataset.map(lambda string: string + ' </S>')
         dataset = tf.data.Dataset.zip((input_dataset, output_dataset))
 
         dataset = dataset.map(lambda string_in, string_out: (tf.string_split([string_in]).values,

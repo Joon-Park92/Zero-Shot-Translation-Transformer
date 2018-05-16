@@ -277,3 +277,51 @@ class Transformer(object):
 
         print("DECODING PROCESS FINISH...")
         print('BLEU score: {}'.format(compute_bleu(reference_corpus=reference, translation_corpus=translation)))
+
+    # def translate(self, enc_inputs, is_training):
+    #     """Greedy decoding translation
+    #     Args:
+    #         enc_inputs:
+    #         is_training:
+    #
+    #     Return:
+    #         translated tensor ( decode auto-regressively )
+    #     """
+    #     max_len = self._max_len
+    #     func = lambda x1, x2: self.__call__(inputs=x1,
+    #                                         decoder_inputs=x2,
+    #                                         drop_rate=self._drop_rate,
+    #                                         is_training=is_training)
+    #
+    #     init_dec_input = np.zeros(shape=[max_len])
+    #     init_dec_input[0] = 2  # <S>
+    #     init_dec_input = tf.zeros_like(enc_inputs, dtype=tf.int32) \
+    #                      + tf.convert_to_tensor(init_dec_input, dtype=tf.int32)
+    #
+    #     outputs = tf.TensorArray(dtype=tf.int32, size=max_len, clear_after_read=True)
+    #     outputs = outputs.write(0, init_dec_input)
+    #
+    #     def _cond(i, *args):
+    #         return tf.less(i, max_len - 1)
+    #
+    #     def _body(i, enc_in, outputs):
+    #         dec_in = outputs.read(i)
+    #         logits = func(enc_in, dec_in)
+    #         next_decoder_inputs = tf.to_int32(tf.argmax(logits, axis=-1))
+    #
+    #         i = tf.add(i, 1)
+    #         dec_in = tf.concat([dec_in[:, :i], tf.expand_dims(next_decoder_inputs[:, i], axis=-1)], axis=-1)
+    #         dec_in = tf.concat([dec_in[:, :(i + 1)], tf.zeros_like(enc_in, tf.int32)[:, (i + 1):]], axis=-1)
+    #         outputs = outputs.write(i, dec_in)
+    #
+    #         return i, enc_in, outputs
+    #
+    #     loop_vars = [tf.constant(0), enc_inputs, outputs]
+    #     _, _, outputs = tf.while_loop(cond=_cond,
+    #                                   body=_body,
+    #                                   loop_vars=loop_vars,
+    #                                   back_prop=is_training)
+    #
+    #     translated_tensor = outputs.read(max_len - 1)
+    #
+    #     return translated_tensor
