@@ -6,6 +6,16 @@ import tensorflow as tf
 import numpy as np
 
 
+def layer_normalize(inputs, epsilon=1e-8):
+    mean, vars = tf.nn.moments(inputs, axes=[-1], keep_dims=True)
+    beta = tf.get_variable('norm_beta', shape=[], dtype=tf.float32)
+    gamma = tf.get_variable('norm_gamma', shape=[], dtype=tf.float32)
+
+    normalize = (inputs - mean) / ((vars + epsilon) ** (.5))
+    output = beta * normalize + gamma
+    return output
+
+
 def embedding(ids,
               vocab_size,
               embed_dim,
@@ -125,7 +135,7 @@ def encoding_sublayer(input_embedding,
             embeded_tensor = tf.layers.dropout(embeded_tensor, rate=drop_rate, training=is_training)
             # Add & Norm
             embeded_tensor = embeded_tensor + residual
-            embeded_tensor = tf.layers.batch_normalization(embeded_tensor, axis=-1, training=is_training)
+            embeded_tensor = layer_normalize(inputs=embeded_tensor)
 
         # SubLayer_2 (Feed Forward)
         with tf.variable_scope('sublayer_2'):
@@ -135,7 +145,7 @@ def encoding_sublayer(input_embedding,
             embeded_tensor = tf.layers.dropout(embeded_tensor, rate=drop_rate, training=is_training)
             # Add & Norm
             embeded_tensor = embeded_tensor + residual
-            embeded_tensor = tf.layers.batch_normalization(embeded_tensor, axis=-1, training=is_training)
+            embeded_tensor = layer_normalize(inputs=embeded_tensor)
 
         return embeded_tensor
 
@@ -161,7 +171,7 @@ def decoding_sublayer(output_embedding,
             output_embedding = tf.layers.dropout(output_embedding, rate=drop_rate, training=is_training)
             # Add & Norm
             output_embedding = output_embedding + residual
-            output_embedding = tf.layers.batch_normalization(output_embedding, axis=-1, training=is_training)
+            output_embedding = layer_normalize(output_embedding)
 
         # SubLayer_2 (Multi-Head Attention)
         with tf.variable_scope('sublayer_2'):
@@ -174,7 +184,7 @@ def decoding_sublayer(output_embedding,
             embeded_tensor = tf.layers.dropout(embeded_tensor, rate=drop_rate, training=is_training)
             # Add & Norm
             embeded_tensor = embeded_tensor + residual
-            embeded_tensor = tf.layers.batch_normalization(embeded_tensor, axis=-1, training=is_training)
+            embeded_tensor = layer_normalize(embeded_tensor)
 
         # SubLayer_3 (Feed Forward)
         with tf.variable_scope('sublayer_3'):
@@ -183,7 +193,7 @@ def decoding_sublayer(output_embedding,
             embeded_tensor = tf.layers.dense(embeded_tensor, units=num_units)
             embeded_tensor = tf.layers.dropout(embeded_tensor, rate=drop_rate, training=is_training)
             embeded_tensor = embeded_tensor + residual
-            embeded_tensor = tf.layers.batch_normalization(embeded_tensor, axis=-1, training=is_training)
+            embeded_tensor = layer_normalize(embeded_tensor)
 
         return embeded_tensor
 
