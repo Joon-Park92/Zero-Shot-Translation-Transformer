@@ -47,15 +47,17 @@ class Trainer(object):
                     print('TRAINING LOSS: {} / STEP: {}'.format(loss, step))
 
                     # Show examples
-                    input_sentence, target_sentence, output_sentence, _ = sess.run(
-                        [Model.x, Model.y, Model.preds, Model.train_op], feed_dict={self.is_training: True})
+                    input_sentence, target_sentence, output_sentence, dec_inputs, _ = sess.run(
+                        [Model.x, Model.y, Model.preds, Model.decoder_inputs, Model.train_op], feed_dict={self.is_training: True})
 
                     input_sentence = input_sentence[0]
                     target_sentence = target_sentence[0]
                     output_sentence = output_sentence[0]
+                    dec_inputs = dec_inputs[0]
 
                     print("INPUT: "
                           + " ".join([Model.input_int2vocab.get(i) for i in input_sentence]).split('<PAD>')[0])
+                    print("DEC_IN: " + " ".join([Model.target_int2vocab.get(i) for i in dec_inputs]))
                     print("OUTPUT: " + " ".join([Model.target_int2vocab.get(i) for i in output_sentence]))
                     print("TARGET: "
                           + " ".join([Model.target_int2vocab.get(i) for i in target_sentence]).split('<PAD>')[0]

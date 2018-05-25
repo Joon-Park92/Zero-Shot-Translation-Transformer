@@ -103,7 +103,7 @@ def multi_head_attention(queries,
             paddings = tf.ones_like(masks) * (-2 ** 32 + 1)
             weights = tf.where(tf.equal(masks, 0), paddings, weights)
 
-        weights = tf.nn.softmax(weights, axis=-1)
+        weights = tf.nn.softmax(weights, dim=-1)
         attention = tf.matmul(weights, v_proj)
 
         # Restore splitted tensor

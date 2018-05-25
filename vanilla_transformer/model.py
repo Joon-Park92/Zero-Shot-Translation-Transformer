@@ -184,7 +184,6 @@ class Transformer(object):
         Args:
             enc_inputs:
             is_training:
-
         Return:
             translated tensor ( decode auto-regressively )
         """

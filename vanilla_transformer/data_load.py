@@ -33,7 +33,6 @@ class VocabMaker(object):
         """
         Arg:
             vocab_path : path containing vocab files.
-
         Return:
             vocab_dict : A dictionary that contains lists of words (count > mininmun_count) for each language.
         """
