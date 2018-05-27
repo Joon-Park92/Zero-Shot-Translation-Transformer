@@ -1,9 +1,11 @@
-# A TensorFlow Zero-Shot translation implemented by Transformer 
+# Zero-Shot translation implemented by Transformer ( tensorflow )
+
+## Translation / Zero-Shot Translation implemented by Transformer
  * Google has released a zero-shot translation task through the GNMT model. The project will try to use the new model(Transformer) to perform translation tasks and experiment with the possibility of translating zero-shot through various languages.
  * First, You can train your translation model ( Transformer ) using `vanilla_transformer`
  * Second, You can have experiment of Zero-Shot translation using Transformer by `transformer_zero_shot`
  * Figure below this paragraph shows the concept of Zero-Shot translation
-![image](https://1.bp.blogspot.com/-jwgtcgkgG2o/WDSBrwu9jeI/AAAAAAAABbM/2Eobq-N9_nYeAdeH-sB_NZGbhyoSWgReACLcB/s640/image01.gif)
+<center>![image](https://1.bp.blogspot.com/-jwgtcgkgG2o/WDSBrwu9jeI/AAAAAAAABbM/2Eobq-N9_nYeAdeH-sB_NZGbhyoSWgReACLcB/s640/image01.gif)</center>
 
 ## Requirements
   
@@ -20,6 +22,20 @@
 * STEP 2. Run `preprocessor.py` , it will preprocess and make training data 
 * STEP 3. Run `train.py` to train your model
 * STEP 4. Run `eval.py` to save result and calculate BLEU score
+
+## Vanilla translation
+
+### Training process
+  * ![image](materials/Transformer_summary.JPG)
+  * ![image](materials/transformer_example.png)
+  
+  
+## Zero-Shot translation
+
+### Result 
+![image](materials/Result.png)
+### Discussion
+![image](materials/Lang_family.png)
 
 ## Reference 
   * Ashish Vaswan, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N. Gomez, Łukasz Kaiser Illia Polosukhin  Attention Is All You Need, arXiv:1706.03762v5, 2017
