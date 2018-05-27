@@ -26,8 +26,8 @@
 ## Vanilla translation
 
 ### Training process
-  * ![image](materials/Transformer_summary.JPG)
-  * ![image](materials/transformer_example.png)
+  ![image](materials/Transformer_summary.JPG)
+  ![image](materials/transformer_example.png)
   
   
 ## Zero-Shot translation
