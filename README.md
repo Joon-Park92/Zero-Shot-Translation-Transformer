@@ -1,5 +1,5 @@
 # A TensorFlow Zero-Shot translation implemented by Transformer 
- * Google implement Zero-Shot translation by GNMT model. There are two experiments in this project.
+ * Google has released a zero-shot translation task through the GNMT model. The project will try to use the new model(Transformer) to perform translation tasks and experiment with the possibility of translating zero-shot through various languages.
  * First, You can train your translation model ( Transformer ) using `vanilla_transformer`
  * Second, You can have experiment of Zero-Shot translation using Transformer by `transformer_zero_shot`
  * Figure below this paragraph shows the concept of Zero-Shot translation
@@ -23,7 +23,7 @@
 
 ## Reference 
   * Ashish Vaswan, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N. Gomez, Łukasz Kaiser Illia Polosukhin  Attention Is All You Need, arXiv:1706.03762v5, 2017
-  * Melvin Johnson, Mike Schuster, Quoc V. Le, Maxim Krikun, Yonghui Wu, Zhifeng Chen, Nikhil Thorat , Fernanda Viégas, Martin Wattenberg, Greg Corrado, Macduff Hughes, Jeffrey Dean,  Google’s Multilingual Neural Machine Translation System: Enabling Zero-Shot Translation, arXiv:1611.04558v2 2017  
+  * Melvin Johnson, Mike Schuster, Quoc V. Le, Maxim Krikun, Yonghui Wu, Zhifeng Chen, Nikhil Thorat , Fernanda Viégas, Martin Wattenberg, Greg Corrado, Macduff Hughes, Jeffrey Dean, Google’s Multilingual Neural Machine Translation System: Enabling Zero-Shot Translation, arXiv:1611.04558v2 2017  
   * Jörg Tiedemann, 2012, Parallel Data, Tools and Interfaces in OPUS. In Proceedings of the 8th International Conference on Language Resources and Evaluation (LREC 2012)
   * P. Lison and J. Tiedemann, 2016, OpenSubtitles2016: Extracting Large Parallel Corpora from Movie and TV Subtitles. In Proceedings of the 10th International Conference on Language Resources and Evaluation (LREC 2016)
   * https://github.com/Kyubyong/transformer
