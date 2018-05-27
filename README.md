@@ -1,4 +1,4 @@
-# Zero-Shot translation implemented by Transformer ( tensorflow )
+# Zero-Shot translation ( tensorflow / Transformer )
 
 ## Translation / Zero-Shot Translation implemented by Transformer
  * Google has released a zero-shot translation task through the GNMT model. The project will try to use the new model(Transformer) to perform translation tasks and experiment with the possibility of translating zero-shot through various languages.
