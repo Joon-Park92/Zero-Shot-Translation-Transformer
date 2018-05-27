@@ -7,13 +7,17 @@ import numpy as np
 
 
 def layer_normalize(inputs, epsilon=1e-8):
-    mean, vars = tf.nn.moments(inputs, axes=[-1], keep_dims=True)
-    beta = tf.get_variable('norm_beta', shape=[], dtype=tf.float32)
-    gamma = tf.get_variable('norm_gamma', shape=[], dtype=tf.float32)
+    
+    inputs_shape = inputs.get_shape()
+    params_shape = inputs_shape[-1:]
 
-    normalize = (inputs - mean) / ((vars + epsilon) ** (.5))
-    output = beta * normalize + gamma
-    return output
+    mean, variance = tf.nn.moments(inputs, [-1], keep_dims=True)
+    beta= tf.get_variable('beta', shape= params_shape, dtype=tf.float32, initializer=tf.zeros_initializer)
+    gamma = tf.get_variable('gamma', shape= params_shape, dtype=tf.float32, initializer=tf.ones_initializer)
+    normalized = (inputs - mean) / ( (variance + epsilon) ** (.5) )
+    outputs = gamma * normalized + beta
+    
+    return outputs
 
 
 def embedding(ids,

@@ -17,7 +17,7 @@ class Hyperparams:
     # dev_size: Define Development data size
     # max_len: Maximum length of tokenized data
 
-    exp_path = '/media/disk1/public_milab/translation/zeroshot_exp/exp_zeroshot_4rd'
+    exp_path = '/media/disk1/public_milab/translation/exp/transformer_test'
 
     download_path = '/media/disk1/public_milab/translation/DATA/MultiUN_data'
     extract_path = os.path.join(exp_path, 'raw')
@@ -42,9 +42,9 @@ class Hyperparams:
     dev_input = os.path.join(save_path, 'dev', 'FROM')  # development data file (FROM)
     dev_output = os.path.join(save_path, 'dev', 'TO')  # development data file (TO)
 
-    minimum_count = 300
+    minimum_count = 30
     batch_size = 256
-    num_epochs = 100
+    num_epochs = 5
 
     # train.py
     # train path : path for saving event / graph ...
