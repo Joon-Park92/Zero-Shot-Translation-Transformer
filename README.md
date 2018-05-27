@@ -5,7 +5,7 @@
  * First, You can train your translation model ( Transformer ) using `vanilla_transformer`
  * Second, You can have experiment of Zero-Shot translation using Transformer by `transformer_zero_shot`
  * Figure below this paragraph shows the concept of Zero-Shot translation
-<center>![image](https://1.bp.blogspot.com/-jwgtcgkgG2o/WDSBrwu9jeI/AAAAAAAABbM/2Eobq-N9_nYeAdeH-sB_NZGbhyoSWgReACLcB/s640/image01.gif)</center>
+![image](https://1.bp.blogspot.com/-jwgtcgkgG2o/WDSBrwu9jeI/AAAAAAAABbM/2Eobq-N9_nYeAdeH-sB_NZGbhyoSWgReACLcB/s640/image01.gif)
 
 ## Requirements
   
