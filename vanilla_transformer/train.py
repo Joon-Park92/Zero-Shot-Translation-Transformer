@@ -4,24 +4,35 @@
 import tensorflow as tf
 import os
 
+
 from data_load import VocabMaker, TFDataSetMaker
 from model import Transformer
 from hyperparams import hp
-from utils import *
+from utils.utils import *
 
 
 class Trainer(object):
 
-    def __init__(self, sess, model, is_training):
+    def __init__(self, sess, model, logger, is_training):
         self.sess = sess
         self.model = model
+        self.logger = logger
         self.is_training = is_training
+
+    def _train_step(self):
+        train_path = add_hp_to_train_path(train_path=hp.train_path)
+        if tf.train.latest_checkpoint(train_path) is not None:
+            self.model.load(sess=sess, save_path=train_path)
+
+    def _show_examples(self):
+        pass
 
     def train(self):
 
         sess = self.sess
         Model = self.model
 
+        # TODO: THIS IS NOT THE FUNCTION OF TRAINER / MAKE DIRECTORIES
         # train_path are variable depending on hyperparams
         train_path = add_hp_to_train_path(train_path=hp.train_path)
         dev_path = os.path.join(train_path, 'dev')
@@ -30,12 +41,15 @@ class Trainer(object):
         if not os.path.isdir(hp.train_path): os.mkdir(train_path)
         if not os.path.isdir(hp.train_path): os.mkdir(dev_path)
 
+        # TODO: THIS PART IS FOR LOGGER
         train_writer = tf.summary.FileWriter(logdir=train_path, graph=sess.graph)
         dev_writer = tf.summary.FileWriter(logdir=dev_path)
 
+        # TODO: TRAINER
         if tf.train.latest_checkpoint(train_path) is not None:
             Model.load(sess=sess, save_path=train_path)
 
+        # TODO: THIS PART FOR SUB_FUCTION
         step = sess.run(Model.global_step, feed_dict={self.is_training: False})
 
         while True:
@@ -48,7 +62,8 @@ class Trainer(object):
 
                     # Show examples
                     input_sentence, target_sentence, output_sentence, dec_inputs, _ = sess.run(
-                        [Model.x, Model.y, Model.preds, Model.decoder_inputs, Model.train_op], feed_dict={self.is_training: True})
+                        [Model.x, Model.y, Model.preds, Model.decoder_inputs, Model.train_op],
+                        feed_dict={self.is_training: True})
 
                     input_sentence = input_sentence[0]
                     target_sentence = target_sentence[0]

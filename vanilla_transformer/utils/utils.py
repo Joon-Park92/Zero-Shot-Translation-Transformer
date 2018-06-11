@@ -3,6 +3,7 @@ from nltk.translate import bleu_score
 from hyperparams import hp
 import os
 
+# Model Build Util
 def label_smoother(one_hot, epsilon=0.1):
     depth = one_hot.shape.as_list()[-1]
     return one_hot * (1-epsilon) + (1.0 - one_hot) * (epsilon / (depth-1))
@@ -23,7 +24,13 @@ def warmup_learning_rate(d_model, step_num, warmup_step):
 
     return learning_rate
 
+# Training Utils
 
+def make_dir(path):
+    os.makedirs(path=path,)
+
+
+# Metric Utils
 def compute_bleu(reference_corpus, translation_corpus):
 
     if len(reference_corpus.split()) < 4 or len(translation_corpus.split()) < 4:

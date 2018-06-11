@@ -3,6 +3,7 @@
 
 from __future__ import print_function
 from __future__ import division
+from __future__ import absolute_import
 from hyperparams import Hyperparams as hp
 
 import tensorflow as tf
@@ -66,7 +67,7 @@ class VocabMaker(object):
                 voca.reverse()
 
                 self.from_voca2int = {word: i for i, word in enumerate(voca)}
-                self.from_int2voca = {i : word for i, word in enumerate(voca)}
+                self.from_int2voca = {i: word for i, word in enumerate(voca)}
 
             else:
                 voca = self.vocab_dic[key]
@@ -97,12 +98,13 @@ class TFDataSetMaker(object):
 
         self.train_iterator = None
         self.dev_iterator = None
-        self._make_datset()  # update self.train / self.dev iterator
+        self.test_iterator = None
+        self._make_dataset()  # update self.train / self.dev iterator
 
     @staticmethod
     def _get_dataset(mode, input_hash_table, target_hash_table):
 
-        assert mode == 'train' or mode == 'dev'
+        assert (mode == 'train') or (mode == 'dev') or (mode == 'test')
 
         input_dataset = tf.data.TextLineDataset([hp.train_input if mode == 'train' else hp.dev_input])
         output_dataset = tf.data.TextLineDataset([hp.train_output if mode == 'train' else hp.dev_output])
@@ -123,11 +125,14 @@ class TFDataSetMaker(object):
         elif mode == 'train':
             dataset = dataset.repeat(hp.num_epochs)
 
+        elif mode == 'test':
+            dataset = dataset.repeat(1)
+
         iterator = dataset.make_initializable_iterator()
 
         return iterator
 
-    def _make_datset(self):
+    def _make_dataset(self):
 
         # Make hash_table
         def _get_hash(voca2int):
@@ -149,13 +154,20 @@ class TFDataSetMaker(object):
                                               input_hash_table=input_hash_table,
                                               target_hash_table=target_hash_table)
 
+        self.test_iterator = self._get_dataset(mode='test',
+                                               input_hash_table=input_hash_table,
+                                               target_hash_table=target_hash_table)
+
     def get_input_tensor(self):
         return (tf.cond(pred=self.is_training,
                         true_fn=lambda: self.train_iterator.get_next(),
                         false_fn=lambda: self.dev_iterator.get_next()))
 
+    def get_test_tensor(self):
+        return self.test_iterator.get_next()
+
     def get_init_ops(self):
-        return [tf.global_variables_initializer(),
-                self.train_iterator.initializer,
-                self.dev_iterator.initializer,
-                tf.tables_initializer()]
+        return tf.group(*[tf.global_variables_initializer(),
+                          self.train_iterator.initializer,
+                          self.dev_iterator.initializer,
+                          tf.tables_initializer()])

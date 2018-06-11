@@ -12,9 +12,9 @@ def layer_normalize(inputs, epsilon=1e-8):
     params_shape = inputs_shape[-1:]
 
     mean, variance = tf.nn.moments(inputs, [-1], keep_dims=True)
-    beta= tf.get_variable('beta', shape= params_shape, dtype=tf.float32, initializer=tf.zeros_initializer)
-    gamma = tf.get_variable('gamma', shape= params_shape, dtype=tf.float32, initializer=tf.ones_initializer)
-    normalized = (inputs - mean) / ( (variance + epsilon) ** (.5) )
+    beta= tf.get_variable('beta', shape=params_shape, dtype=tf.float32, initializer=tf.zeros_initializer)
+    gamma = tf.get_variable('gamma', shape=params_shape, dtype=tf.float32, initializer=tf.ones_initializer)
+    normalized = (inputs - mean) / ((variance + epsilon) ** (0.5))
     outputs = gamma * normalized + beta
     
     return outputs
