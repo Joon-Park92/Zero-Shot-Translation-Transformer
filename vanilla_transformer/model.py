@@ -168,6 +168,7 @@ class Transformer(object):
                 tf.summary.scalar('accuracy', self.acc)
                 tf.summary.scalar('mean_loss', self.mean_loss)
                 tf.summary.scalar('learning_rate', self.learning_rate)
+                tf.summary.histogram('logits', self.logits)
 
             self.merged = tf.summary.merge_all()
             self.saver = tf.train.Saver()

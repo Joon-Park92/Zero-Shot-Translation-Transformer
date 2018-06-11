@@ -13,104 +13,94 @@ from utils.utils import *
 
 class Trainer(object):
 
-    def __init__(self, sess, model, logger, is_training):
+    def __init__(self,
+                 sess,
+                 model,
+                 summary_every_n_step,
+                 save_every_n_step,
+                 evaluate_every_n_step,
+                 save_path,
+                 is_training):
+
         self.sess = sess
         self.model = model
-        self.logger = logger
+        self.summary_step = summary_every_n_step
+        self.save_step = save_every_n_step
+        self.eval_step = evaluate_every_n_step
+        self.save_path = save_path
         self.is_training = is_training
 
-    def _train_step(self):
-        train_path = add_hp_to_train_path(train_path=hp.train_path)
-        if tf.train.latest_checkpoint(train_path) is not None:
-            self.model.load(sess=sess, save_path=train_path)
+        self.train_writer = tf.summary.FileWriter(logdir=save_path, graph=graph)
+        self.dev_writer = tf.summary.FileWriter(logdir=os.path.join(save_path, 'dev'))
 
-    def _show_examples(self):
-        pass
+    def _train_step(self, summary=False):
+
+        if summary:
+            _, loss, step, merged = sess.run([self.model.train_op,
+                                              self.model.mean_loss,
+                                              self.model.global_step,
+                                              self.model.merged],
+                                             feed_dict={self.is_training: True})
+            self.train_writer.add_summary(merged, step)
+            print('TRAINING LOSS: {} / STEP: {}'.format(loss, step))
+
+        else:
+            _, step = sess.run([self.model.train_op, self.model.global_step], feed_dict={self.is_training: True})
+
+    def _eval_step(self):
+        loss, step, merged = sess.run([self.model.mean_loss,
+                                       self.model.global_step,
+                                       self.model.merged],
+                                      feed_dict={self.is_training: False})
+        self.dev_writer.add_summary(merged, step)
+        print('DEVELOP LOSS: {} / STEP: {}'.format(loss, step))
 
     def train(self):
 
-        sess = self.sess
-        Model = self.model
-
-        # TODO: THIS IS NOT THE FUNCTION OF TRAINER / MAKE DIRECTORIES
-        # train_path are variable depending on hyperparams
         train_path = add_hp_to_train_path(train_path=hp.train_path)
-        dev_path = os.path.join(train_path, 'dev')
 
-        if not os.path.isdir(hp.train_path): os.mkdir(hp.train_path)
-        if not os.path.isdir(hp.train_path): os.mkdir(train_path)
-        if not os.path.isdir(hp.train_path): os.mkdir(dev_path)
-
-        # TODO: THIS PART IS FOR LOGGER
-        train_writer = tf.summary.FileWriter(logdir=train_path, graph=sess.graph)
-        dev_writer = tf.summary.FileWriter(logdir=dev_path)
-
-        # TODO: TRAINER
         if tf.train.latest_checkpoint(train_path) is not None:
             Model.load(sess=sess, save_path=train_path)
 
-        # TODO: THIS PART FOR SUB_FUCTION
-        step = sess.run(Model.global_step, feed_dict={self.is_training: False})
+        step = sess.run(self.model.global_step, feed_dict={self.is_training: False})
 
         while True:
             try:
-                if step % hp.summary_every_n_step == 0:
-                    _, loss, step, merged = sess.run([Model.train_op, Model.mean_loss, Model.global_step, Model.merged],
-                                                     feed_dict={self.is_training: True})
-                    train_writer.add_summary(merged, step)
-                    print('TRAINING LOSS: {} / STEP: {}'.format(loss, step))
-
-                    # Show examples
-                    input_sentence, target_sentence, output_sentence, dec_inputs, _ = sess.run(
-                        [Model.x, Model.y, Model.preds, Model.decoder_inputs, Model.train_op],
-                        feed_dict={self.is_training: True})
-
-                    input_sentence = input_sentence[0]
-                    target_sentence = target_sentence[0]
-                    output_sentence = output_sentence[0]
-                    dec_inputs = dec_inputs[0]
-
-                    print("INPUT: "
-                          + " ".join([Model.input_int2vocab.get(i) for i in input_sentence]).split('<PAD>')[0])
-                    print("DEC_IN: " + " ".join([Model.target_int2vocab.get(i) for i in dec_inputs]))
-                    print("OUTPUT: " + " ".join([Model.target_int2vocab.get(i) for i in output_sentence]))
-                    print("TARGET: "
-                          + " ".join([Model.target_int2vocab.get(i) for i in target_sentence]).split('<PAD>')[0]
-                          + '\n')
-
+                if step % self.summary_step == 0:
+                    self._train_step(summary=True)
                 else:
-                    _, step = sess.run([Model.train_op, Model.global_step], feed_dict={self.is_training: True})
+                    self._train_step(summary=False)
 
-                if step % hp.save_every_n_step == 1:
-                    Model.save(sess=sess, save_path=os.path.join(train_path, get_hp() + "_step"))
+                if step % self.save_step == 1:
+                    self.model.save(sess=sess, save_path=os.path.join(train_path, get_hp() + "_step.ckpt"))
                     print("Model is saved - step : {}".format(step))
 
-                if step % hp.evaluate_every_n_step == 1:
-                    loss, step, merged = sess.run([Model.mean_loss, Model.global_step, Model.merged],
-                                                  feed_dict={self.is_training: False})
-                    dev_writer.add_summary(merged, step)
-                    print('DEVELOP LOSS: {} / STEP: {}'.format(loss, step))
-
-                    # Show examples
-                    input_sentence, target_sentence, output_sentence = sess.run([Model.x, Model.y, Model.preds],
-                                                                                feed_dict={self.is_training: False})
-
-                    input_sentence = input_sentence[0]
-                    target_sentence = target_sentence[0]
-                    output_sentence = output_sentence[0]
-
-                    print("INPUT: "
-                          + " ".join([Model.input_int2vocab.get(i) for i in input_sentence]).split('<PAD>')[0])
-                    print("OUTPUT: " + " ".join([Model.target_int2vocab.get(i) for i in output_sentence]))
-                    print("TARGET: "
-                          + " ".join([Model.target_int2vocab.get(i) for i in target_sentence]).split('<PAD>')[0]
-                          + '\n')
+                if step % self.eval_step == 1:
+                    self._eval_step()
 
             except tf.errors.OutOfRangeError:
                 print("Training is over...!")
-                train_writer.close()
-                dev_writer.close()
+                self.train_writer.close()
+                self.dev_writer.close()
                 break
+
+
+# def _show_examples(model, input_sentence, target_sentence, output_sentence, dec_inputs):
+
+    # # Show examples
+    # input_sentence, target_sentence, output_sentence, dec_inputs, _ = sess.run(
+    #     [Model.x, Model.y, Model.preds, Model.decoder_inputs, Model.train_op],
+    #     feed_dict={self.is_training: True})
+    #
+    #
+    # print("INPUT: "
+    #       + " ".join([model.input_int2vocab.get(i) for i in input_sentence]).split('<PAD>')[0])
+    # print("DEC_IN: " + " ".join([model.target_int2vocab.get(i) for i in dec_inputs]))
+    # print("OUTPUT: " + " ".join([model.target_int2vocab.get(i) for i in output_sentence]))
+    # print("TARGET: "
+    #       + " ".join([model.target_int2vocab.get(i) for i in target_sentence]).split('<PAD>')[0]
+    #       + '\n')
+
 
 
 if __name__ == '__main__':
@@ -150,5 +140,11 @@ if __name__ == '__main__':
             with tf.name_scope('Trainer_scope'):
                 print("TRAINING START....")
                 sess.run(datasetmaker.get_init_ops())
-                trainer = Trainer(sess=sess, model=Model, is_training=is_training)
+                trainer = Trainer(sess=sess,
+                                  model=Model,
+                                  summary_every_n_step=hp.summary_every_n_step,
+                                  save_every_n_step=hp.save_every_n_step,
+                                  evaluate_every_n_step=hp.evaluate_every_n_step,
+                                  save_path=add_hp_to_train_path(hp.train_path),
+                                  is_training=is_training)
                 trainer.train()

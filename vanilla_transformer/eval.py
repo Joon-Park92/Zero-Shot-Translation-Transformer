@@ -23,7 +23,7 @@ if __name__ == '__main__':
                                               to_int2voca=vocamaker.to_int2voca,
                                               is_training=is_training)
 
-                input_tensor, target_tensor = datasetmaker.get_input_tensor()
+                input_tensor, target_tensor = datasetmaker.get_test_tensor()
 
             Model = Transformer(x=input_tensor,
                                 y=target_tensor,
@@ -41,5 +41,4 @@ if __name__ == '__main__':
             Model.load(sess=sess, save_path=add_hp_to_train_path(train_path=hp.train_path))
             print("Model Loaded")
             Model.evaluate(sess=sess,
-                           dev_dataset_iterator = datasetmaker.dev_iterator)
-            
+                           dev_dataset_iterator=datasetmaker.test_iterator)

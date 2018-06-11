@@ -24,12 +24,6 @@ def warmup_learning_rate(d_model, step_num, warmup_step):
 
     return learning_rate
 
-# Training Utils
-
-def make_dir(path):
-    os.makedirs(path=path,)
-
-
 # Metric Utils
 def compute_bleu(reference_corpus, translation_corpus):
 
