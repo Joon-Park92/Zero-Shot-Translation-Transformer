@@ -64,6 +64,8 @@ class Trainer(object):
             try:
                 if step % self.summary_step == 0:
                     self._train_step(summary=True)
+                    self._show_examples(mode='train')
+
                 else:
                     self._train_step(summary=False)
 
@@ -73,6 +75,7 @@ class Trainer(object):
 
                 if step % self.eval_step == 1:
                     self._eval_step()
+                    self._show_examples(mode='dev')
 
             except tf.errors.OutOfRangeError:
                 print("Training is over...!")
@@ -80,23 +83,32 @@ class Trainer(object):
                 self.dev_writer.close()
                 break
 
+    def _show_examples(self, mode='train'):
 
-# def _show_examples(model, input_sentence, target_sentence, output_sentence, dec_inputs):
+        if mode == 'train':
+            # Show examples
+            input_sentence, target_sentence, output_sentence, dec_inputs, _ = sess.run(
+                [self.model.x, self.model.y, self.model.preds, self.model.decoder_inputs, self.model.train_op],
+                feed_dict={self.is_training: True})
 
-    # # Show examples
-    # input_sentence, target_sentence, output_sentence, dec_inputs, _ = sess.run(
-    #     [Model.x, Model.y, Model.preds, Model.decoder_inputs, Model.train_op],
-    #     feed_dict={self.is_training: True})
-    #
-    #
-    # print("INPUT: "
-    #       + " ".join([model.input_int2vocab.get(i) for i in input_sentence]).split('<PAD>')[0])
-    # print("DEC_IN: " + " ".join([model.target_int2vocab.get(i) for i in dec_inputs]))
-    # print("OUTPUT: " + " ".join([model.target_int2vocab.get(i) for i in output_sentence]))
-    # print("TARGET: "
-    #       + " ".join([model.target_int2vocab.get(i) for i in target_sentence]).split('<PAD>')[0]
-    #       + '\n')
+        elif mode == 'dev':
+            # Show examples
+            input_sentence, target_sentence, output_sentence, dec_inputs = sess.run(
+                [self.model.x, self.model.y, self.model.preds, self.model.decoder_inputs],
+                feed_dict={self.is_training: False})
 
+        input_sentence = input_sentence[0]
+        target_sentence = target_sentence[0]
+        output_sentence = output_sentence[0]
+        dec_inputs = dec_inputs[0]
+
+        print("INPUT: "
+              + " ".join([self.model.input_int2vocab.get(i) for i in input_sentence]).split('<PAD>')[0])
+        print("DEC_IN: " + " ".join([self.model.target_int2vocab.get(i) for i in dec_inputs]))
+        print("OUTPUT: " + " ".join([self.model.target_int2vocab.get(i) for i in output_sentence]))
+        print("TARGET: "
+              + " ".join([self.model.target_int2vocab.get(i) for i in target_sentence]).split('<PAD>')[0]
+              + '\n')
 
 
 if __name__ == '__main__':
