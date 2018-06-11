@@ -4,7 +4,7 @@
 from __future__ import print_function
 from __future__ import division
 from __future__ import absolute_import
-from hyperparams import Hyperparams as hp
+from utils.hyperparams import Hyperparams as hp
 
 import tensorflow as tf
 import codecs

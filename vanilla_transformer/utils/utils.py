@@ -1,6 +1,6 @@
 import tensorflow as tf
 from nltk.translate import bleu_score
-from hyperparams import hp
+from utils.hyperparams import hp
 import os
 
 # Model Build Util

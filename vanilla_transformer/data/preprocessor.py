@@ -10,7 +10,7 @@ import codecs
 import os
 from collections import Counter
 import pandas as pd
-from hyperparams import hp
+from utils.hyperparams import hp
 
 
 class Preprocesser(object):

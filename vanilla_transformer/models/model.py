@@ -3,14 +3,11 @@
 
 from __future__ import print_function
 from __future__ import division
-from hyperparams import Hyperparams as hp
+from utils.hyperparams import Hyperparams as hp
 
-import tensorflow as tf
-import numpy as np
-import os, codecs
-from tqdm import tqdm
+import codecs
 
-from model_layers import *
+from models.model_layers import *
 from utils.utils import *
 
 

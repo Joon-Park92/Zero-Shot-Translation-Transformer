@@ -1,13 +1,9 @@
 # -*- coding: utf-8 -*-
 #/usr/bin/python2
 
-import tensorflow as tf
-import os
 
-
-from data_load import VocabMaker, TFDataSetMaker
-from model import Transformer
-from hyperparams import hp
+from data.data_load import VocabMaker, TFDataSetMaker
+from models.model import Transformer
 from utils.utils import *
 
 

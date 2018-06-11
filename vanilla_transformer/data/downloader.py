@@ -13,7 +13,7 @@ import itertools
 import tqdm
 import pandas as pd
 from os.path import isfile, isdir
-from hyperparams import hp
+from utils.hyperparams import hp
 
 # Python2
 if sys.version_info[0] == 2:
