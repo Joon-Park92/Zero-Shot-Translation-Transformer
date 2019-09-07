@@ -1,17 +1,15 @@
 # -*- coding: utf-8 -*-
 #/usr/bin/python2
 
-from __future__ import print_function
-from __future__ import division
-from hyperparams import Hyperparams as hp
+import os, codecs
 
 import tensorflow as tf
 import numpy as np
-import os, codecs
 from tqdm import tqdm
 
 from model_layers import *
 from utils import *
+from hyperparams import Hyperparams as hp
 
 
 class Transformer(object):

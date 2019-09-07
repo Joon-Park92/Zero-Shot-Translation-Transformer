@@ -1,13 +1,7 @@
-# -*- coding: utf-8 -*-
-#/usr/bin/python2
-
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-import regex as re
+import re 
 import codecs
 import os
+from os.path import isfile, isdir
 import gzip
 import zipfile
 
@@ -16,13 +10,8 @@ import pandas as pd
 import itertools
 import tqdm
 
-from os.path import isfile, isdir
 from hyperparams import hp
-
-#Python2
-from urllib import urlretrieve
-# Python 3
-# from urllib.request import urlretrieve
+from urllib.request import urlretrieve
 
 
 class DLProgress(tqdm.tqdm):

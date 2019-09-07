@@ -24,16 +24,16 @@
 ## Vanilla translation
 
 ### Training process
-  ![image](materials/Transformer_summary.JPG)
-  ![image](materials/transformer_example.png)
+  ![image](assets/Transformer_summary.JPG)
+  ![image](assets/transformer_example.png)
   
   
 ## Zero-Shot translation
 
 ### Result 
-![image](materials/Result.png)
+![image](assets/Result.png)
 ### Discussion
-![image](materials/Lang_family.png)
+![image](assets/Lang_family.png)
 
 ## Reference 
   * Ashish Vaswan, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N. Gomez, Łukasz Kaiser Illia Polosukhin  Attention Is All You Need, arXiv:1706.03762v5, 2017

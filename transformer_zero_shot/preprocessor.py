@@ -1,26 +1,16 @@
-# -*- coding: utf-8 -*-
-#/usr/bin/python2
-
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-import regex as re
 import codecs
-import os
+from collections import Counter
 import gzip
+import itertools
+import os
+from os.path import isfile, isdir
+import re
 import zipfile
 
-from collections import Counter
 import pandas as pd
-import itertools
 import tqdm
 
-from os.path import isfile, isdir
-#Python2
-from urllib import urlretrieve
-# Python 3
-# from urllib.request import urlretrieve
+from urllib.request import urlretrieve
 from hyperparams import hp
 
 
@@ -102,7 +92,6 @@ class MultiUNDataLoader(object):
             self.keys.append(id_)
 
     def _get_df(self, key):
-
         lang1 = str(key).upper()[:2]
         lang2 = str(key).upper()[3:]
         file_name = key + '.txt.zip'

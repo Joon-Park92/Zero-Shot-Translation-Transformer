@@ -1,13 +1,8 @@
-# -*- coding: utf-8 -*-
-#/usr/bin/python2
-
-from __future__ import print_function
-from __future__ import division
-from hyperparams import Hyperparams as hp
+import codecs
+import os
 
 import tensorflow as tf
-import codecs
-import os 
+from hyperparams import Hyperparams as hp
 
 
 class ZeroShotVocabMaker(object):

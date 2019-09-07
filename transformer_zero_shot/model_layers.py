@@ -1,7 +1,3 @@
-from __future__ import division
-from __future__ import print_function
-from __future__ import absolute_import
-
 import tensorflow as tf
 import numpy as np
 
@@ -17,14 +13,14 @@ def embedding(ids,
     with tf.variable_scope(name_or_scope=scope, reuse=reuse):
         embed_table = tf.get_variable('embed_table', shape=[vocab_size, embed_dim], dtype=tf.float32)
 
-        # Padding Character(<PAD>) to Zero-vector
+        # padding character(<pad>) to zero-vector
         if zeropad:
             zero_embed = tf.convert_to_tensor(np.zeros(shape=[1, embed_dim]), dtype=tf.float32)
             embed_table = tf.concat([zero_embed, embed_table[1:, :]], axis=0)
 
         embeded_tensor = tf.nn.embedding_lookup(params=embed_table, ids=ids)
 
-        # Positional Encoding
+        # positional encoding
         if pos:
             seq_length = embeded_tensor.shape.as_list()[1]
             d_dim = embeded_tensor.shape.as_list()[2]
@@ -44,7 +40,7 @@ def embedding(ids,
             pos_embed = tf.nn.embedding_lookup(params=pos_table, ids=ids)
             pos_embed = embeded_tensor + pos_embed
 
-            # Masking (<PAD> to Zero-vector)
+            # masking (<pad> to zero-vector)
             mask = tf.sign(tf.abs(tf.reduce_sum(embeded_tensor, axis=-1)))
             mask = tf.tile(tf.expand_dims(mask, -1), [1, 1, tf.shape(pos_embed)[-1]])
             pos_embed *= mask
@@ -60,28 +56,28 @@ def multi_head_attention(queries,
                          causality=False,
                          scope='multi_head_attention',
                          reuse=False):
-    # Check dimension
+    # check dimension
     assert queries.shape[-1] == keys.shape[-1]
 
     with tf.variable_scope(scope, reuse=reuse):
-        # Projection
+        # projection
         q_proj = tf.layers.dense(queries, units=num_units, activation=tf.nn.relu)
         k_proj = tf.layers.dense(keys, units=num_units, activation=tf.nn.relu)
         v_proj = tf.layers.dense(keys, units=num_units, activation=tf.nn.relu)
 
-        # Split Head & Temporarily concatenate to the first dimension
+        # split head & temporarily concatenate to the first dimension
         q_proj = tf.concat(tf.split(q_proj, num_or_size_splits=num_heads, axis=-1), axis=0)
         k_proj = tf.concat(tf.split(k_proj, num_or_size_splits=num_heads, axis=-1), axis=0)
         v_proj = tf.concat(tf.split(v_proj, num_or_size_splits=num_heads, axis=-1), axis=0)
 
-        # Attention
+        # attention
         k_trans = tf.transpose(k_proj, perm=[0, 2, 1])
         k_dim = k_proj.shape.as_list()[-1]
 
-        # Scale
+        # scale
         weights = tf.matmul(q_proj, k_trans) / tf.sqrt(tf.constant(k_dim, dtype=tf.float32,shape=[]))
 
-        # Masking ( Causality )
+        # masking ( causality ) 
         if causality:
             """
             Decoder : We also modify the self-attention sub-layer in the decoder stack 

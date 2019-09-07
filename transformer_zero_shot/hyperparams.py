@@ -1,12 +1,8 @@
-# -*- coding: utf-8 -*-
-#/usr/bin/python2
-
 import os
 
 class Hyperparams:
 
     # preprocessor.py - DownLoad & Preprocess & Save data to disk
-
     DATASET = 'MultiUN'  # You can use 'OpenSubTitle2018' dataset if you change DATASET as 'OpenSubTitle2018'
     # data_path: dir for law data (download dir)
     data_path = '/media/disk1/public_milab/translation/DATA/MultiUN_data'
@@ -27,7 +23,6 @@ class Hyperparams:
     min_len = 10
 
     # data_load.py
-
     # vocab_path: dir contains vocab files
     vocab_path = os.path.join(save_path, 'vocab')
     # minimum_count: Vocab having lower frequency than minimum count will be discarded
