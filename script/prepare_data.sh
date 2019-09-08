@@ -1,31 +1,33 @@
 #!/bin/bash
 
-# follwing https://google.github.io/styleguide/shell.xml#Indentation
-
-# DOWNLOAD PARALLEL LANGUAGE FILE
-# wget http://opus.nlpl.eu/download.php\?f\=OpenSubtitles/v2018/moses/en-ko.txt.zip
-# mkdir en-ko
-# unzip download.php?f=OpenSubtitles%2Fv2018%2Fmoses%2Fen-ko.txt.zip -d ./en-ko/
-
 # PREPROCESS DATA
-L1="OpenSubtitles.en-ko.en"
-L2="OpenSubtitles.en-ko.ko"
-
+DOWN_DIR=./open_subtitle2018
+L1=$DOWN_DIR/OpenSubtitles.en-ko.en
+L2=$DOWN_DIR/OpenSubtitles.en-ko.ko
 TEST_SIZE=10000
 VAL_SIZE=10000
 NUM_BPE_OPERATIONS=10000
 VOCABULARY_THRESHOLD=50
 
 
-preprocessing () {	
+# DOWNLOAD PARALLEL LANGUAGE FILE
+download () {
+#  mkdir $DOWN_DIR 
+#  wget http://opus.nlpl.eu/download.php\?f\=OpenSubtitles/v2018/moses/en-ko.txt.zip
+  unzip download.php?f=OpenSubtitles%2Fv2018%2Fmoses%2Fen-ko.txt.zip -d $DOWN_DIR
+}
 
+shuffle () {
+  echo SHUFFLING...
+  paste -d ':' $L1 $L2 | shuf | awk -v FS=':' -v f1="$L1.shuf" -v f2="$L2.shuf" '{ print $1 > f1 ; print $2 > f2 }'
+}
+
+preprocessing () {	
   RAW_FILE=$1
 
   echo CLEAN $RAW_FILE
-
   # it works only for ascii encoding
 #  sed -e "s/[^[:print:]]//g" -i $RAW_FILE
-
   # for utf-8 
   sed -e 's/\xc2\x91\|\xc2\x92\|\xc2\xa0\|\xe2\x80\x8e//' -i $RAW_FILE
   sed -e "s///g" -i $RAW_FILE
@@ -56,14 +58,17 @@ preprocessing () {
     done
 }
 
+main () {
 
-#echo SHUFFLING...
-#paste -d ':' $L1 $L2 | shuf | awk -v FS=':' -v f1="$L1.shuf" -v f2="$L2.shuf" '{ print $1 > f1 ; print $2 > f2 }'
+  download 
+  shuffle
 
-# for LANG in $L1 $L2
-for LANG in $L2
-  do
-    preprocessing $LANG
-  done
+  for LANG in $L1 $L2
+    do
+      preprocessing $LANG
+    done
 
-./build_dictionary.py train_file.BPE.L1 train_file.BPE.L2
+  # ./build_dictionary.py 
+}
+
+main

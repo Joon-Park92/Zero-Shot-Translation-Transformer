@@ -1,0 +1,4 @@
+tensorflow-gpu==1.9
+subword-nmt
+numpy
+tqdm
