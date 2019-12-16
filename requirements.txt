@@ -1,4 +1,4 @@
-tensorflow-gpu==1.9
+tensorflow-gpu==1.15.0
 subword-nmt
 numpy
 tqdm
